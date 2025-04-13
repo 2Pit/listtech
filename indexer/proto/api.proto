@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package indexer;
+
+import "google/api/annotations.proto";
+
+option go_package = "listtech/indexer;indexer";
+
+// API сервис индексера
+service IndexerApi {
+  // Добавление одного документа
+  rpc AddDocument(AddDocumentRequest) returns (AddDocumentResponse) {
+    option (google.api.http) = {
+      post: "/v1/doc"
+      body: "*"
+    };
+  }
+
+  // Добавление нескольких документов
+  rpc AddDocuments(AddDocumentsRequest) returns (AddDocumentsResponse) {
+    option (google.api.http) = {
+      post: "/v1/bulk"
+      body: "*"
+    };
+  }
+
+  // Обновление схемы
+  rpc UpdateSchema(UpdateSchemaRequest) returns (UpdateSchemaResponse) {
+    option (google.api.http) = {
+      put: "/v1/schema"
+      body: "*"
+    };
+  }
+
+  // Получение текущей схемы
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse) {
+    option (google.api.http) = {
+      get: "/v1/schema"
+    };
+  }
+}
+
+message IndexableField {
+  string name = 1;
+  oneof value {
+    string string_value = 2;
+    int64 int_value = 3;
+    double double_value = 4;
+    bool bool_value = 5;
+  }
+  repeated string facets = 6;
+  bool stored = 7;
+  bool indexed = 8;
+  bool fast = 9;
+  bool is_facet = 10;
+}
+
+message Document {
+  string schema_version = 1;
+  repeated IndexableField fields = 2;
+}
+
+message AddDocumentRequest {
+  Document document = 1;
+}
+message AddDocumentResponse {}
+
+message AddDocumentsRequest {
+  repeated Document documents = 1;
+}
+message AddDocumentsResponse {}
+
+message UpdateSchemaRequest {
+  string previous_schema_version = 1;
+  repeated IndexableField add_fields = 2;
+  repeated string remove_fields = 3;
+}
+message UpdateSchemaResponse {
+  string new_schema_version = 1;
+}
+
+message GetSchemaRequest {
+  string schema_version = 1;
+}
+message GetSchemaResponse {
+  repeated IndexableField fields = 1;
+}
