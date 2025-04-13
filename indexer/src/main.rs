@@ -1,5 +1,5 @@
 use axum::{routing::get, Router};
-use core::swagger::serve_swagger_ui;
+use core::swagger::{serve_indexer_html, serve_static};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -19,10 +19,11 @@ async fn main() {
         .expect("cannot bind to port");
 
     let app = Router::new()
-        .route("/swagger/{*path}", get(serve_swagger_ui))
+        .route("/swagger/", get(serve_indexer_html))
+        .route("/swagger-ui/{*path}", get(serve_static))
         .layer(TraceLayer::new_for_http());
 
-    info!("Running indexer at http://localhost:{port}/swagger/index.html");
+    info!("Running indexer at http://localhost:{port}/swagger/");
 
     axum::serve(listener, app).await.unwrap();
 }

@@ -1,4 +1,4 @@
 fn main() {
-    info!("Starting admin...");
+    println!("Starting admin...");
     // TODO: Add tracing setup and run logic
 }

@@ -1,0 +1,300 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "IndexerApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/bulk": {
+      "post": {
+        "summary": "Добавление нескольких документов",
+        "operationId": "IndexerApi_AddDocuments",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/indexerAddDocumentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/indexerAddDocumentsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "IndexerApi"
+        ]
+      }
+    },
+    "/v1/doc": {
+      "post": {
+        "summary": "Добавление одного документа",
+        "operationId": "IndexerApi_AddDocument",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/indexerAddDocumentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/indexerAddDocumentRequest"
+            }
+          }
+        ],
+        "tags": [
+          "IndexerApi"
+        ]
+      }
+    },
+    "/v1/schema": {
+      "get": {
+        "summary": "Получение текущей схемы",
+        "operationId": "IndexerApi_GetSchema",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/indexerGetSchemaResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "schemaVersion",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "IndexerApi"
+        ]
+      },
+      "put": {
+        "summary": "Обновление схемы",
+        "operationId": "IndexerApi_UpdateSchema",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/indexerUpdateSchemaResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/indexerUpdateSchemaRequest"
+            }
+          }
+        ],
+        "tags": [
+          "IndexerApi"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "indexerAddDocumentRequest": {
+      "type": "object",
+      "properties": {
+        "document": {
+          "$ref": "#/definitions/indexerDocument"
+        }
+      }
+    },
+    "indexerAddDocumentResponse": {
+      "type": "object"
+    },
+    "indexerAddDocumentsRequest": {
+      "type": "object",
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/indexerDocument"
+          }
+        }
+      }
+    },
+    "indexerAddDocumentsResponse": {
+      "type": "object"
+    },
+    "indexerDocument": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/indexerIndexableField"
+          }
+        }
+      }
+    },
+    "indexerGetSchemaResponse": {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/indexerIndexableField"
+          }
+        }
+      }
+    },
+    "indexerIndexableField": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "stringValue": {
+          "type": "string"
+        },
+        "intValue": {
+          "type": "string",
+          "format": "int64"
+        },
+        "doubleValue": {
+          "type": "number",
+          "format": "double"
+        },
+        "boolValue": {
+          "type": "boolean"
+        },
+        "facets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stored": {
+          "type": "boolean"
+        },
+        "indexed": {
+          "type": "boolean"
+        },
+        "fast": {
+          "type": "boolean"
+        },
+        "isFacet": {
+          "type": "boolean"
+        }
+      }
+    },
+    "indexerUpdateSchemaRequest": {
+      "type": "object",
+      "properties": {
+        "previousSchemaVersion": {
+          "type": "string"
+        },
+        "addFields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/indexerIndexableField"
+          }
+        },
+        "removeFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "indexerUpdateSchemaResponse": {
+      "type": "object",
+      "properties": {
+        "newSchemaVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}
