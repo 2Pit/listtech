@@ -1,5 +1,5 @@
 use axum::{routing::get, Router};
-use core::swagger::{serve_swagger_json, serve_swagger_ui};
+use core::swagger::serve_swagger_ui;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -20,10 +20,9 @@ async fn main() {
 
     let app = Router::new()
         .route("/swagger/{*path}", get(serve_swagger_ui))
-        .route("/swagger/swagger.json", get(serve_swagger_json))
         .layer(TraceLayer::new_for_http());
 
-    info!("Running indexer at http://localhost:{}/swagger/", port);
+    info!("Running indexer at http://localhost:{port}/swagger/index.html");
 
     axum::serve(listener, app).await.unwrap();
 }
@@ -32,8 +31,8 @@ fn init_logging() {
     use tracing_subscriber::EnvFilter;
 
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_file(true) // если хочешь показывать путь к файлу
-        .with_line_number(true) // можно и строку
+        .with_env_filter(EnvFilter::try_from_default_env().unwrap())
+        .with_file(true)
+        .with_line_number(true)
         .init();
 }
