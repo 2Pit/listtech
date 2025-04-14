@@ -1,36 +1,28 @@
-use axum::{routing::get, Router};
-use corelib::swagger::{serve_indexer_html, serve_static};
-use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
-use tracing::info;
+mod api;
+
+use api::grpc_server;
+use api::swagger;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let port = std::env::var("INDEXER_PORT")
+    let grpc_port = std::env::var("GRPC_PORT")
         .ok()
         .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(8080);
+        .unwrap_or(50051);
 
-    let listener = TcpListener::bind(("0.0.0.0", port))
-        .await
-        .expect("cannot bind to port");
+    let http_server = tokio::spawn(swagger::run_swagger_server());
+    let grpc_server = tokio::spawn(grpc_server::run_grpc_server(grpc_port));
 
-    let app = Router::new()
-        .route("/swagger/", get(serve_indexer_html))
-        .route("/swagger-ui/{*path}", get(serve_static))
-        .layer(TraceLayer::new_for_http());
+    tokio::try_join!(http_server, grpc_server)?;
 
-    info!("Running indexer at http://localhost:{port}/swagger/");
-
-    axum::serve(listener, app).await.unwrap();
+    Ok(())
 }
 
 fn init_logging() {
     use tracing_subscriber::EnvFilter;
-
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap())
         .with_file(true)
