@@ -8,15 +8,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let grpc_port = std::env::var("GRPC_PORT")
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(50051);
+    let swagger = tokio::spawn(swagger::run_swagger_server());
+    let grpc_api = tokio::spawn(grpc_server::run_grpc_server());
 
-    let http_server = tokio::spawn(swagger::run_swagger_server());
-    let grpc_server = tokio::spawn(grpc_server::run_grpc_server(grpc_port));
-
-    tokio::try_join!(http_server, grpc_server)?;
+    tokio::try_join!(swagger, grpc_api)?;
 
     Ok(())
 }

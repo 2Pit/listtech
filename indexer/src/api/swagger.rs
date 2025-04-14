@@ -6,7 +6,7 @@ use tracing::info;
 use corelib::swagger::{serve_indexer_html, serve_static};
 
 pub async fn run_swagger_server() {
-    let port = std::env::var("INDEXER_PORT")
+    let port = std::env::var("SWAGGER_PORT")
         .ok()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(8080);
