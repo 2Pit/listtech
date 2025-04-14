@@ -1,3 +1,4 @@
 /target
-/core/static/swagger-ui/swagger.json
+/data
 .env
+.DS_Store

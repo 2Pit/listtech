@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-core = { path = "../core" }
+corelib = { path = "../corelib" }
 axum = "0.8"
 hyper = "1"
 tokio = { version = "1", features = ["full"] }
@@ -15,6 +15,9 @@ serde_json = "1"
 dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tonic = "0.10"
+prost = "0.12"
+prost-types = "0.12"
 
 [build-dependencies]
 prost-build = "0.12"

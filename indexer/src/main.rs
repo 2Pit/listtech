@@ -1,5 +1,5 @@
 use axum::{routing::get, Router};
-use core::swagger::{serve_indexer_html, serve_static};
+use corelib::swagger::{serve_indexer_html, serve_static};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::info;

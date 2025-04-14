@@ -1,7 +1,3 @@
 [workspace]
-members = [
-    "indexer",
-    "searcher",
-    "admin",
-    "core"
-]
+members = ["indexer", "searcher", "admin", "corelib"]
+resolver = "3"

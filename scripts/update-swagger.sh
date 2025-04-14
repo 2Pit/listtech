@@ -8,7 +8,7 @@ fi
 
 PROTO_FILE=$1
 OUT_DIR=$2
-THIRD_PARTY="core/proto/third_party"
+THIRD_PARTY="corelib/proto/third_party"
 
 mkdir -p "$OUT_DIR"
 
