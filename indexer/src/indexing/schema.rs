@@ -31,7 +31,7 @@ pub fn build_schema() -> Schema {
     schema_builder.add_facet_field("category", FacetOptions::default().set_stored());
 
     // Позиции в рейтингах (multi-valued): 3092, 5010 и т.п.
-    schema_builder.add_i64_field("rank_position", FAST | STORED);
+    schema_builder.add_u64_field("rank_position", FAST | STORED);
 
     // Категории, в которых товар занимает позицию (соответствуют по индексу с rank_position)
     schema_builder.add_facet_field("rank_facet", FacetOptions::default().set_stored());

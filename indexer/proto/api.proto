@@ -43,16 +43,15 @@ service IndexerApi {
 message IndexableField {
   string name = 1;
   oneof value {
-    string string_value = 2;
-    int64 int_value = 3;
-    double double_value = 4;
-    bool bool_value = 5;
+    bool bool_value = 2;
+    uint64 ulong_value = 3;
+    int64 long_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    bytes bytes_value = 7;
+    int64 timestamp_ms_value = 8;
   }
-  repeated string facets = 6;
-  bool stored = 7;
-  bool indexed = 8;
-  bool fast = 9;
-  bool is_facet = 10;
+  repeated string facets = 11;
 }
 
 message Document {

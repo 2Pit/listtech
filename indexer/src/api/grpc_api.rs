@@ -29,7 +29,7 @@ impl IndexerApi for IndexerGrpc {
             .document
             .ok_or_else(|| Status::invalid_argument("Document is missing"))?;
 
-        let tantivy_doc = super::mapping::map_proto_to_tantivy(&doc, &self.index.schema)
+        let tantivy_doc = super::mapping::map_proto_to_tantivy_doc(&doc, &self.index.schema)
             .map_err(|e| Status::invalid_argument(format!("Invalid document: {e}")))?;
 
         let writer = self.index.writer.lock().await;

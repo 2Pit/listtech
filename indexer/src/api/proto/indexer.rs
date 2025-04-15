@@ -4,17 +4,9 @@
 pub struct IndexableField {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "6")]
+    #[prost(string, repeated, tag = "11")]
     pub facets: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(bool, tag = "7")]
-    pub stored: bool,
-    #[prost(bool, tag = "8")]
-    pub indexed: bool,
-    #[prost(bool, tag = "9")]
-    pub fast: bool,
-    #[prost(bool, tag = "10")]
-    pub is_facet: bool,
-    #[prost(oneof = "indexable_field::Value", tags = "2, 3, 4, 5")]
+    #[prost(oneof = "indexable_field::Value", tags = "2, 3, 4, 5, 6, 7, 8")]
     pub value: ::core::option::Option<indexable_field::Value>,
 }
 /// Nested message and enum types in `IndexableField`.
@@ -22,14 +14,20 @@ pub mod indexable_field {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
-        #[prost(string, tag = "2")]
-        StringValue(::prost::alloc::string::String),
-        #[prost(int64, tag = "3")]
-        IntValue(i64),
-        #[prost(double, tag = "4")]
-        DoubleValue(f64),
-        #[prost(bool, tag = "5")]
+        #[prost(bool, tag = "2")]
         BoolValue(bool),
+        #[prost(uint64, tag = "3")]
+        UlongValue(u64),
+        #[prost(int64, tag = "4")]
+        LongValue(i64),
+        #[prost(double, tag = "5")]
+        DoubleValue(f64),
+        #[prost(string, tag = "6")]
+        StringValue(::prost::alloc::string::String),
+        #[prost(bytes, tag = "7")]
+        BytesValue(::prost::alloc::vec::Vec<u8>),
+        #[prost(int64, tag = "8")]
+        TimestampMsValue(i64),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

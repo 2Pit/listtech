@@ -2,9 +2,10 @@ use crate::api::proto::indexer::indexable_field::Value;
 use crate::api::proto::indexer::Document;
 use tantivy::schema::document::TantivyDocument;
 use tantivy::schema::{Facet, Schema};
+use tantivy::DateTime;
 use tantivy::TantivyError;
 
-pub fn map_proto_to_tantivy(
+pub fn map_proto_to_tantivy_doc(
     doc: &Document,
     schema: &Schema,
 ) -> Result<TantivyDocument, TantivyError> {
@@ -18,26 +19,18 @@ pub fn map_proto_to_tantivy(
             use Value::*;
 
             match v {
-                StringValue(s) => {
-                    if field.is_facet {
-                        compact_doc.add_facet(field_entry, Facet::from(s));
-                    } else {
-                        compact_doc.add_text(field_entry, s);
-                    }
-                }
-                IntValue(i) => {
-                    compact_doc.add_i64(field_entry, *i);
-                }
-                DoubleValue(f) => {
-                    compact_doc.add_f64(field_entry, *f);
-                }
-                BoolValue(b) => {
-                    compact_doc.add_bool(field_entry, *b);
+                BoolValue(b) => compact_doc.add_bool(field_entry, *b),
+                LongValue(i) => compact_doc.add_i64(field_entry, *i),
+                UlongValue(u) => compact_doc.add_u64(field_entry, *u),
+                DoubleValue(f) => compact_doc.add_f64(field_entry, *f),
+                StringValue(s) => compact_doc.add_text(field_entry, s),
+                BytesValue(b) => compact_doc.add_bytes(field_entry, b),
+                TimestampMsValue(t) => {
+                    compact_doc.add_date(field_entry, DateTime::from_timestamp_nanos(*t))
                 }
             }
         }
 
-        // Обработка facets и repeated
         for facet_str in &field.facets {
             compact_doc.add_facet(field_entry, Facet::from(facet_str));
         }
