@@ -1,5 +1,5 @@
-mod api;
-mod indexing;
+pub mod api;
+pub mod indexing;
 
 use anyhow::{Context, Error, Result};
 use api::grpc_server;
