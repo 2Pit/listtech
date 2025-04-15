@@ -4,20 +4,35 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Локальные зависимости
 corelib = { path = "../corelib" }
+
+# HTTP-сервер и middleware
 axum = "0.8"
 hyper = "1"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["trace"] }
-include_dir = "0.7"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-dotenvy = "0.15"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# gRPC и Protobuf
 tonic = "0.10"
 prost = "0.12"
 prost-types = "0.12"
+
+# Сериализация
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Логирование и трассировка
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Обработка ошибок
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Вспомогательные инструменты
+dotenvy = "0.15"
+include_dir = "0.7"
 
 [build-dependencies]
 prost-build = "0.12"

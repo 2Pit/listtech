@@ -1,3 +1,4 @@
+use anyhow::Error;
 use axum::{routing::get, Router};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -5,12 +6,7 @@ use tracing::info;
 
 use corelib::swagger::{serve_indexer_html, serve_static};
 
-pub async fn run_swagger_server() {
-    let port = std::env::var("SWAGGER_PORT")
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(8080);
-
+pub async fn run_swagger_server(port: u16) -> Result<(), Error> {
     let listener = TcpListener::bind(("0.0.0.0", port))
         .await
         .expect("cannot bind to HTTP port");
@@ -22,4 +18,6 @@ pub async fn run_swagger_server() {
 
     info!("HTTP server running at http://localhost:{port}/swagger/");
     axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }

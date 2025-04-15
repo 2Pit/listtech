@@ -1,17 +1,30 @@
 mod api;
 
+use anyhow::{Context, Error, Result};
 use api::grpc_server;
 use api::swagger;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let swagger = tokio::spawn(swagger::run_swagger_server());
-    let grpc_api = tokio::spawn(grpc_server::run_grpc_server());
+    let grpc_port: u16 = std::env::var("GRPC_PORT")
+        .context("GRPC_PORT not set")?
+        .parse()
+        .context("GRPC_PORT should be a valid u16 number")?;
 
-    tokio::try_join!(swagger, grpc_api)?;
+    let swagger_port = std::env::var("SWAGGER_PORT")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(8080);
+
+    let swagger = tokio::spawn(swagger::run_swagger_server(swagger_port));
+    let grpc_api = tokio::spawn(grpc_server::run_grpc_server(grpc_port));
+
+    let (swagger_res, grpc_res) = tokio::try_join!(swagger, grpc_api)?;
+    swagger_res?;
+    grpc_res?;
 
     Ok(())
 }
