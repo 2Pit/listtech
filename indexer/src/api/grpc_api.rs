@@ -1,9 +1,22 @@
 use crate::api::proto::indexer::indexer_api_server::IndexerApi;
 use crate::api::proto::indexer::*;
+use crate::indexing::index_state::IndexState;
+use crate::indexing::schema::build_schema;
+use std::path::Path;
 use tonic::{Request, Response, Status};
 
-#[derive(Debug, Default)]
-pub struct IndexerGrpc {}
+#[derive(Clone)]
+pub struct IndexerGrpc {
+    pub index: IndexState,
+}
+
+impl IndexerGrpc {
+    pub async fn create_indexer_grpc(index_path: &Path) -> anyhow::Result<IndexerGrpc> {
+        let schema = build_schema();
+        let index_state = IndexState::init_index(index_path, schema).await?;
+        Ok(IndexerGrpc { index: index_state })
+    }
+}
 
 #[tonic::async_trait]
 impl IndexerApi for IndexerGrpc {
@@ -11,8 +24,18 @@ impl IndexerApi for IndexerGrpc {
         &self,
         request: Request<AddDocumentRequest>,
     ) -> Result<Response<AddDocumentResponse>, Status> {
-        let doc = request.into_inner().document;
-        tracing::info!(?doc, "Received document");
+        let doc = request
+            .into_inner()
+            .document
+            .ok_or_else(|| Status::invalid_argument("Document is missing"))?;
+
+        let tantivy_doc = super::mapping::map_proto_to_tantivy(&doc, &self.index.schema)
+            .map_err(|e| Status::invalid_argument(format!("Invalid document: {e}")))?;
+
+        let writer = self.index.writer.lock().await;
+        writer
+            .add_document(tantivy_doc)
+            .map_err(|e| Status::invalid_argument(format!("Failed to add document: {e}")))?;
 
         Ok(Response::new(AddDocumentResponse {}))
     }

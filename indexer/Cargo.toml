@@ -33,6 +33,7 @@ thiserror = "1.0"
 # Вспомогательные инструменты
 dotenvy = "0.15"
 include_dir = "0.7"
+tantivy = "0.24.0"
 
 [build-dependencies]
 prost-build = "0.12"
