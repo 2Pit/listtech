@@ -95,3 +95,41 @@ async fn test_indexing_example_document() {
         .expect("add_document failed");
     writer.commit().expect("commit failed");
 }
+
+#[tokio::test]
+async fn test_invalid_type_field() {
+    let schema = build_schema();
+    let doc = Document {
+        schema_version: "v1".to_string(),
+        fields: vec![IndexableField {
+            name: "price".to_string(),
+            value: Some(Value::StringValue("should_be_f64".to_string())), // Ошибка: ожидается f64
+            facets: vec![],
+        }],
+    };
+
+    let result = map_proto_to_tantivy_doc(&doc, &schema);
+    assert!(
+        result.is_err(),
+        "Expected error when passing incorrect value type"
+    );
+}
+
+#[tokio::test]
+async fn test_unknown_field_name() {
+    let schema = build_schema();
+    let doc = Document {
+        schema_version: "v1".to_string(),
+        fields: vec![IndexableField {
+            name: "unknown_field".to_string(), // Ошибка: поля нет в схеме
+            value: Some(Value::BoolValue(true)),
+            facets: vec![],
+        }],
+    };
+
+    let result = map_proto_to_tantivy_doc(&doc, &schema);
+    assert!(
+        result.is_err(),
+        "Expected error when using field not present in schema"
+    );
+}

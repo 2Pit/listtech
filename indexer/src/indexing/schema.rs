@@ -43,7 +43,7 @@ pub fn build_schema() -> Schema {
     schema_builder.add_text_field("also_view", STRING | STORED);
 
     // Временная метка создания товара (в миллисекундах, Unix timestamp)
-    schema_builder.add_i64_field("timestamp_creation_ms", FAST | STORED);
+    schema_builder.add_date_field("timestamp_creation_ms", FAST | STORED);
 
     // URL основного изображения
     schema_builder.add_text_field("image_url", STRING | STORED);
