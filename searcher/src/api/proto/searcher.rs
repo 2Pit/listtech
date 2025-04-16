@@ -16,7 +16,6 @@ pub struct SearchResponse {
 pub struct SearchHit {
     #[prost(string, tag = "1")]
     pub doc_id: ::prost::alloc::string::String,
-    /// возвращаем только stored-поля
     #[prost(map = "string, string", tag = "2")]
     pub fields: ::std::collections::HashMap<
         ::prost::alloc::string::String,
@@ -28,6 +27,7 @@ pub mod search_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    /// gRPC сервис с HTTP аннотациями для swagger
     #[derive(Debug, Clone)]
     pub struct SearchServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -144,6 +144,7 @@ pub mod search_service_server {
             request: tonic::Request<super::SearchRequest>,
         ) -> std::result::Result<tonic::Response<super::SearchResponse>, tonic::Status>;
     }
+    /// gRPC сервис с HTTP аннотациями для swagger
     #[derive(Debug)]
     pub struct SearchServiceServer<T: SearchService> {
         inner: _Inner<T>,
