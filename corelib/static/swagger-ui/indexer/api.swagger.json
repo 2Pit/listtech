@@ -205,10 +205,14 @@
         "name": {
           "type": "string"
         },
-        "stringValue": {
-          "type": "string"
+        "boolValue": {
+          "type": "boolean"
         },
-        "intValue": {
+        "ulongValue": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "longValue": {
           "type": "string",
           "format": "int64"
         },
@@ -216,26 +220,22 @@
           "type": "number",
           "format": "double"
         },
-        "boolValue": {
-          "type": "boolean"
+        "stringValue": {
+          "type": "string"
+        },
+        "bytesValue": {
+          "type": "string",
+          "format": "byte"
+        },
+        "timestampMsValue": {
+          "type": "string",
+          "format": "int64"
         },
         "facets": {
           "type": "array",
           "items": {
             "type": "string"
           }
-        },
-        "stored": {
-          "type": "boolean"
-        },
-        "indexed": {
-          "type": "boolean"
-        },
-        "fast": {
-          "type": "boolean"
-        },
-        "isFacet": {
-          "type": "boolean"
         }
       }
     },

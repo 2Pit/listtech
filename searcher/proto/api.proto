@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package searcher;
+
+import "google/api/annotations.proto";
+
+option go_package = "listtech/searcher;searcher";
+
+// gRPC сервис с HTTP аннотациями для swagger
+service SearchService {
+  rpc Search (SearchRequest) returns (SearchResponse) {
+    option (google.api.http) = {
+      post: "/v1/search"
+      body: "*"
+    };
+  }
+}
+
+message SearchRequest {
+  string query = 1;
+}
+
+message SearchResponse {
+  repeated SearchHit hits = 1;
+}
+
+message SearchHit {
+  string doc_id = 1;
+  map<string, string> fields = 2;
+}
