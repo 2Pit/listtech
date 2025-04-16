@@ -1,5 +1,6 @@
 use crate::api::proto::indexer::indexer_api_server::IndexerApi;
 use crate::api::proto::indexer::*;
+use crate::indexing::index_document::index_document;
 use crate::indexing::index_state::IndexState;
 use crate::indexing::schema::build_schema;
 use std::path::Path;
@@ -29,13 +30,9 @@ impl IndexerApi for IndexerGrpc {
             .document
             .ok_or_else(|| Status::invalid_argument("Document is missing"))?;
 
-        let tantivy_doc = super::mapping::map_proto_to_tantivy_doc(&doc, &self.index.schema)
-            .map_err(|e| Status::invalid_argument(format!("Invalid document: {e}")))?;
-
-        let writer = self.index.writer.lock().await;
-        writer
-            .add_document(tantivy_doc)
-            .map_err(|e| Status::invalid_argument(format!("Failed to add document: {e}")))?;
+        index_document(&self.index, doc)
+            .await
+            .map_err(|e| Status::invalid_argument(format!("Document indexing failed: {e}")))?;
 
         Ok(Response::new(AddDocumentResponse {}))
     }

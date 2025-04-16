@@ -21,7 +21,7 @@ impl IndexState {
             Index::create_in_dir(path, schema.clone())?
         };
 
-        let writer = index.writer(50_000_000)?; // 50 MB
+        let writer = index.writer(500_000_000)?; // 500 MB
         let writer = Arc::new(Mutex::new(writer));
 
         // автокоммит
@@ -29,7 +29,7 @@ impl IndexState {
             let writer_clone = writer.clone();
             tokio::spawn(async move {
                 loop {
-                    tokio::time::sleep(Duration::from_secs(300)).await;
+                    tokio::time::sleep(Duration::from_secs(30)).await;
                     let mut w = writer_clone.lock().await;
                     if let Err(e) = w.commit() {
                         tracing::error!(error = %e, "Failed to autocommit index");
