@@ -3,24 +3,18 @@ pub mod app;
 pub mod domain;
 pub mod infra;
 
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use app::grpc_server;
 use app::swagger_server;
+use corelib::telemetry::init::{init_logging, read_u16_env};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let grpc_port: u16 = std::env::var("GRPC_PORT")
-        .context("GRPC_PORT not set")?
-        .parse()
-        .context("GRPC_PORT should be a valid u16 number")?;
-
-    let swagger_port = std::env::var("SWAGGER_PORT")
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(8080);
+    let grpc_port = read_u16_env("INDEXER_GRPC_PORT", None)?;
+    let swagger_port = read_u16_env("INDEXER_SWAGGER_PORT", None)?;
 
     let swagger = tokio::spawn(swagger_server::run_swagger_server(swagger_port));
     let grpc_api = tokio::spawn(grpc_server::run_grpc_server(grpc_port));
@@ -30,13 +24,4 @@ async fn main() -> Result<(), Error> {
     grpc_res?;
 
     Ok(())
-}
-
-fn init_logging() {
-    use tracing_subscriber::EnvFilter;
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap())
-        .with_file(true)
-        .with_line_number(true)
-        .init();
 }

@@ -1,5 +1,5 @@
 use crate::api::proto::searcher::search_service_server::SearchServiceServer;
-use crate::index::SearchIndex;
+use crate::infra::index::SearchIndex;
 
 use anyhow::{Context, Result};
 use std::path::Path;
