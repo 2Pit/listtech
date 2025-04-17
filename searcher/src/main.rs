@@ -1,13 +1,13 @@
 mod index;
 
-use crate::index::SearchIndex;
+// use crate::index::SearchIndex;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let index = SearchIndex::open_from_path("./data/index")?;
+    // let index = SearchIndex::open_from_path("./data/index")?;
     println!("Index and reader successfully initialized.");
 
     Ok(())
