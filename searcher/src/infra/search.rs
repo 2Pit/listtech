@@ -1,4 +1,4 @@
-use crate::domain::document::to_string_owned_value;
+use crate::domain::document::map_owned_value;
 use crate::infra::index::SearchIndex;
 use std::collections::HashMap;
 use tantivy::{
@@ -36,17 +36,14 @@ pub fn execute_search(index: &SearchIndex, query_str: &str) -> Result<Vec<Search
             .doc(addr)
             .map_err(|e| Status::internal(format!("Failed to retrieve document: {e}")))?;
 
-        let mut fields = HashMap::new();
+        let mut fields = vec![];
 
-        for (field, value) in retrieved.iter() {
-            let field_name = schema.get_field_name(*field);
-            fields.insert(field_name.to_string(), to_string_owned_value(value));
+        for (field, value) in retrieved.into_iter() {
+            let field_name = schema.get_field_name(field);
+            fields.push(map_owned_value(field_name, value));
         }
 
-        hits.push(SearchHit {
-            doc_id: "some_doc_id".to_string(),
-            fields,
-        });
+        hits.push(SearchHit { fields });
     }
 
     Ok(hits)

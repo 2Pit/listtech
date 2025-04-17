@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .build_client(true)
         .out_dir("src/api/proto")
-        .compile_with_config(
+        .compile_protos_with_config(
             config,
             &["proto/api.proto"],
             &["proto", "../corelib/proto/third_party"],

@@ -81,7 +81,14 @@ async fn test_grpc_search_macbook() {
     // 5. Проверяем результат
     assert_eq!(response.hits.len(), 1);
     let fields = &response.hits[0].fields;
-    assert!(fields.values().any(|v| v.contains("macbook")));
+    assert!(fields
+        .iter()
+        .flat_map(|sf| sf.value.as_ref())
+        .any(|v| match v {
+            searcher::api::proto::searcher::search_field::Value::StringValue(s) =>
+                s.contains("macbook"),
+            _ => false,
+        }));
 
     // 6. Останавливаем сервер
     let _ = shutdown_tx.send(());

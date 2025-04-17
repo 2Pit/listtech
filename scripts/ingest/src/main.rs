@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use indexer::api::proto::indexer::{
-    indexable_field::Value, indexer_api_client::IndexerApiClient, AddDocumentRequest, Document,
-    IndexableField,
+    indexable_field::FacetWrapper, indexable_field::Value, indexer_api_client::IndexerApiClient,
+    AddDocumentRequest, Document, IndexableField,
 };
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -56,7 +56,6 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                 fields.push(IndexableField {
                     name: $name.to_string(),
                     value: Some(Value::StringValue(s.to_string())),
-                    facets: vec![],
                 });
             }
         };
@@ -73,7 +72,6 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                 fields.push(IndexableField {
                     name: $name.to_string(),
                     value: Some(Value::StringValue(first.to_string())),
-                    facets: vec![],
                 });
             }
         };
@@ -97,7 +95,6 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
             fields.push(IndexableField {
                 name: "price".to_string(),
                 value: Some(Value::DoubleValue(price)),
-                facets: vec![],
             });
         }
     }
@@ -108,7 +105,6 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                 fields.push(IndexableField {
                     name: "timestamp_creation_ms".to_string(),
                     value: Some(Value::TimestampMsValue(ts.and_utc().timestamp_millis())),
-                    facets: vec![],
                 });
             }
         }
@@ -117,8 +113,9 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
     if let Some(s) = json.get("brand").and_then(|v| v.as_str()) {
         fields.push(IndexableField {
             name: "brand".to_string(),
-            value: None,
-            facets: vec![format!("/{}", s)],
+            value: Some(Value::FacetWrapper(FacetWrapper {
+                facets: vec![format!("/{}", s)],
+            })),
         });
     }
 
@@ -133,7 +130,6 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
         fields.push(IndexableField {
             name: "category".to_string(),
             value: None,
-            facets,
         });
     }
 
@@ -146,7 +142,6 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                         fields.push(IndexableField {
                             name: "rank_position".to_string(),
                             value: Some(Value::UlongValue(rank_value)),
-                            facets: vec![],
                         });
                     }
 
@@ -160,8 +155,7 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                     }
                     fields.push(IndexableField {
                         name: "rank_facet".to_string(),
-                        value: None,
-                        facets,
+                        value: Some(Value::FacetWrapper(FacetWrapper { facets })),
                     });
                 }
             }

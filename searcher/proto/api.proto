@@ -3,6 +3,7 @@ syntax = "proto3";
 package searcher;
 
 import "google/api/annotations.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "listtech/searcher;searcher";
 
@@ -25,6 +26,60 @@ message SearchResponse {
 }
 
 message SearchHit {
-  string doc_id = 1;
-  map<string, string> fields = 2;
+  repeated SearchField fields = 1;
+}
+
+message SearchField {
+  string name = 1;
+
+  oneof value {
+    bool bool_value = 2;
+    uint64 ulong_value = 3;
+    int64 long_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    bytes bytes_value = 7;
+    int64 timestamp_ms_value = 8;
+    FacetWrapper facet_wrapper = 9;
+  }
+
+  message FacetWrapper {
+    repeated string facets = 1;
+  }
+}
+
+message SearchMatrixResponse {
+  uint32 row_count = 1;
+  repeated ColumnVector columns = 2;
+}
+
+message ColumnVector {
+  string name = 1;
+
+  oneof values {
+    BoolColumn bool_column = 2;
+    UInt64Column ulong_column = 3;
+    Int64Column long_column = 4;
+    DoubleColumn double_column = 5;
+    StringColumn string_column = 6;
+    BytesColumn bytes_column = 7;
+    TimestampColumn timestamp_column = 8;
+    FacetColumn facet_column = 9;
+  }
+}
+
+message BoolColumn     { repeated google.protobuf.BoolValue values = 1; }
+message Int64Column    { repeated google.protobuf.Int64Value values = 1; }
+message UInt64Column   { repeated google.protobuf.UInt64Value values = 1; }
+message DoubleColumn   { repeated google.protobuf.DoubleValue values = 1; }
+message StringColumn   { repeated google.protobuf.StringValue values = 1; }
+message BytesColumn    { repeated google.protobuf.BytesValue values = 1; }
+message TimestampColumn{ repeated google.protobuf.Int64Value values = 1; }
+
+message FacetColumn {
+  repeated FacetWrapper values = 1;
+}
+
+message FacetWrapper {
+  repeated string facets = 1;
 }

@@ -31,7 +31,16 @@ fn test_search_finds_macbook() {
     let hits: Vec<SearchHit> = execute_search(&index, "macbook").unwrap();
     assert_eq!(hits.len(), 1);
     let hit = &hits[0];
-    assert!(hit.fields.values().any(|v| v.contains("macbook")));
+
+    assert!(hit
+        .fields
+        .iter()
+        .flat_map(|sf| sf.value.as_ref())
+        .any(|v| match v {
+            searcher::api::proto::searcher::search_field::Value::StringValue(s) =>
+                s.contains("macbook"),
+            _ => false,
+        }));
 }
 
 #[test]

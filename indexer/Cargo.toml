@@ -11,12 +11,12 @@ corelib = { path = "../corelib" }
 axum = "0.8"
 hyper = "1"
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.5", features = ["trace"] }
+tower-http = { version = "0.6", features = ["trace"] }
 
 # gRPC и Protobuf
-tonic = "0.10"
-prost = "0.12"
-prost-types = "0.12"
+tonic = "0.13"
+prost = "0.13"
+prost-types = "0.13"
 
 # Сериализация
 serde = { version = "1", features = ["derive"] }
@@ -28,7 +28,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Обработка ошибок
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Вспомогательные инструменты
 dotenvy = "0.15"
@@ -40,6 +40,6 @@ name = "indexer"
 path = "src/lib.rs"
 
 [build-dependencies]
-prost-build = "0.12"
-tonic-build = "0.10"
+prost-build = "0.13"
+tonic-build = "0.13"
 tokio = { version = "1", features = ["full"] }
