@@ -1,2 +1,5 @@
 pub mod api;
-pub mod indexing;
+pub mod app;
+pub mod domain;
+pub mod infra;
+pub mod telemetry;

@@ -1,4 +1,4 @@
-use crate::api::grpc_api::IndexerGrpc;
+use crate::api::grpc::IndexerGrpc;
 use crate::api::proto::indexer::indexer_api_server::IndexerApiServer;
 
 use anyhow::{Context, Result};

@@ -1,7 +1,7 @@
 use indexer::api::mapping::map_proto_to_tantivy_doc;
 use indexer::api::proto::indexer::indexable_field::Value;
 use indexer::api::proto::indexer::{Document, IndexableField};
-use indexer::indexing::schema::build_schema;
+use indexer::infra::schema::build_schema;
 use tantivy::Index;
 
 #[tokio::test]

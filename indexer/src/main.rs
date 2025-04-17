@@ -1,9 +1,11 @@
 pub mod api;
-pub mod indexing;
+pub mod app;
+pub mod domain;
+pub mod infra;
 
 use anyhow::{Context, Error, Result};
-use api::grpc_server;
-use api::swagger;
+use app::grpc_server;
+use app::swagger_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -20,7 +22,7 @@ async fn main() -> Result<(), Error> {
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(8080);
 
-    let swagger = tokio::spawn(swagger::run_swagger_server(swagger_port));
+    let swagger = tokio::spawn(swagger_server::run_swagger_server(swagger_port));
     let grpc_api = tokio::spawn(grpc_server::run_grpc_server(grpc_port));
 
     let (swagger_res, grpc_res) = tokio::try_join!(swagger, grpc_api)?;
