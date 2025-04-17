@@ -21,7 +21,8 @@ fn create_test_index() -> SearchIndex {
     let schema = schema_builder.build();
 
     let index = Index::create_in_dir(&dir, schema.clone()).unwrap();
-    let mut writer = index.writer(50_000_000).unwrap();
+    let _50mb = 50_000_000;
+    let mut writer = index.writer(_50mb).unwrap();
 
     writer.add_document(doc!(title => "macbook pro")).unwrap();
     writer.commit().unwrap();

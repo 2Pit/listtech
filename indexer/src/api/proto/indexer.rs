@@ -4,13 +4,17 @@
 pub struct IndexableField {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "11")]
-    pub facets: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(oneof = "indexable_field::Value", tags = "2, 3, 4, 5, 6, 7, 8")]
+    #[prost(oneof = "indexable_field::Value", tags = "2, 3, 4, 5, 6, 7, 8, 9")]
     pub value: ::core::option::Option<indexable_field::Value>,
 }
 /// Nested message and enum types in `IndexableField`.
 pub mod indexable_field {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct FacetWrapper {
+        #[prost(string, repeated, tag = "1")]
+        pub facets: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
@@ -28,6 +32,8 @@ pub mod indexable_field {
         BytesValue(::prost::alloc::vec::Vec<u8>),
         #[prost(int64, tag = "8")]
         TimestampMsValue(i64),
+        #[prost(message, tag = "9")]
+        FacetWrapper(FacetWrapper),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

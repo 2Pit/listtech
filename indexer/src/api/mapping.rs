@@ -36,16 +36,17 @@ pub fn map_proto_to_tantivy_doc(
                 TimestampMsValue(t) if field_type == Type::Date => {
                     compact_doc.add_date(field_entry, DateTime::from_timestamp_nanos(*t))
                 }
+                FacetWrapper(f) if field_type == Type::Facet => {
+                    for facet_str in &f.facets {
+                        compact_doc.add_facet(field_entry, Facet::from(facet_str));
+                    }
+                }
                 _ => Err(TantivyError::InvalidArgument(format!(
                     "Invalid data type '{}' for field '{}'",
                     field_type.to_code(),
                     field_name
                 )))?,
             }
-        }
-
-        for facet_str in &field.facets {
-            compact_doc.add_facet(field_entry, Facet::from(facet_str));
         }
     }
 

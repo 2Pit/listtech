@@ -50,8 +50,12 @@ message IndexableField {
     string string_value = 6;
     bytes bytes_value = 7;
     int64 timestamp_ms_value = 8;
+    FacetWrapper facet_wrapper = 9;
   }
-  repeated string facets = 11;
+
+  message FacetWrapper {
+    repeated string facets = 1;
+  }
 }
 
 message Document {
