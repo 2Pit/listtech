@@ -12,7 +12,7 @@ pub async fn run_swagger_server(port: u16) -> Result<(), Error> {
         .expect("cannot bind to HTTP port");
 
     let app = Router::new()
-        .route("/swagger/", get(serve_indexer_html))
+        .route("/swagger/", get(serve_searcher_html))
         .route("/swagger-ui/{*path}", get(serve_static))
         .layer(TraceLayer::new_for_http());
 
