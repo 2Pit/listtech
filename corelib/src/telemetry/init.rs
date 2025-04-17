@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::{Context, Result};
 
 pub fn init_logging() {
@@ -9,13 +11,17 @@ pub fn init_logging() {
         .init();
 }
 
-pub fn read_u16_env(var: &str, default: Option<u16>) -> Result<u16> {
-    match std::env::var(var) {
+pub fn read_env_var<T>(key: &str, default: Option<T>) -> Result<T>
+where
+    T: FromStr,
+    T::Err: std::error::Error + Send + Sync + 'static, // + 'static,
+{
+    match std::env::var(key) {
         Ok(val) => val
-            .parse()
-            .with_context(|| format!("{} must be a valid u16 number", var)),
+            .parse::<T>()
+            .with_context(|| format!("{key} is invalid")),
         Err(std::env::VarError::NotPresent) => {
-            default.ok_or_else(|| anyhow::anyhow!("{} not set and no default provided", var))
+            default.ok_or_else(|| anyhow::anyhow!("{key} not set and no default provided"))
         }
         Err(e) => Err(anyhow::anyhow!(e)),
     }
