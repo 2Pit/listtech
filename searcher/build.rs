@@ -1,6 +1,8 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut config = prost_build::Config::new();
+    println!("cargo:rerun-if-changed=proto/api.proto");
+    println!("cargo:rerun-if-changed=../corelib/proto/third_party");
 
+    let mut config = prost_build::Config::new();
     config.compile_well_known_types();
     // .type_attribute(".", "#[derive(Debug)]");
 
@@ -13,9 +15,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &["proto/api.proto"],
             &["proto", "../corelib/proto/third_party"],
         )?;
-
-    println!("cargo:rerun-if-changed=proto/api.proto");
-    println!("cargo:rerun-if-changed=../corelib/proto/third_party");
 
     Ok(())
 }
