@@ -14,7 +14,7 @@ pub fn init_logging() {
 pub fn read_env_var<T>(key: &str, default: Option<T>) -> Result<T>
 where
     T: FromStr,
-    T::Err: std::error::Error + Send + Sync + 'static, // + 'static,
+    T::Err: std::error::Error + Send + Sync + 'static,
 {
     match std::env::var(key) {
         Ok(val) => val
