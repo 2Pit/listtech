@@ -1,7 +1,7 @@
 [package]
 name = "corelib"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 axum = "0.8"
@@ -17,3 +17,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Обработка ошибок
 anyhow = "1.0"
 thiserror = "2.0"
+
+# gRPC и Protobuf
+tonic = "0.13"
+prost = "0.13"
+prost-types = "0.13"
+
+[build-dependencies]
+prost-build = "0.13"
+tonic-build = "0.13"
+tokio = { version = "1", features = ["full"] }

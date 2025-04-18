@@ -1,9 +1,10 @@
 [package]
 name = "ingest"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
+corelib = { path = "../../corelib/" }
 indexer = { path = "../../indexer/" }
 tonic = "0.13"
 prost = "0.13"

@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
+use corelib::telemetry::init::{init_logging, read_env_var};
 use indexer::api::proto::indexer::{
-    indexable_field::FacetWrapper, indexable_field::Value, indexer_api_client::IndexerApiClient,
-    AddDocumentRequest, Document, IndexableField,
+    AddDocumentRequest, Document, IndexableField, indexable_field::FacetWrapper,
+    indexable_field::Value, indexer_api_client::IndexerApiClient,
 };
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -12,9 +13,10 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
-    tracing_subscriber::fmt::init();
+    init_logging();
 
-    let grpc_addr = std::env::var("GRPC_PORT").map(|port| format!("http://localhost:{}", port))?;
+    let port: u16 = read_env_var("INDEXER_GRPC_PORT", None)?;
+    let grpc_addr = format!("http://localhost:{}", port);
     let mut client = IndexerApiClient::connect(grpc_addr).await?;
 
     let file = File::open("data/meta_Electronics.json").context("cannot open input file")?;

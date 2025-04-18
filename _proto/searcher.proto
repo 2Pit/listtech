@@ -3,7 +3,7 @@ syntax = "proto3";
 package searcher;
 
 import "google/api/annotations.proto";
-import "google/protobuf/wrappers.proto";
+import "common.proto";
 
 option go_package = "listtech/searcher;searcher";
 
@@ -68,18 +68,38 @@ message ColumnVector {
   }
 }
 
-message BoolColumn     { repeated google.protobuf.BoolValue values = 1; }
-message Int64Column    { repeated google.protobuf.Int64Value values = 1; }
-message UInt64Column   { repeated google.protobuf.UInt64Value values = 1; }
-message DoubleColumn   { repeated google.protobuf.DoubleValue values = 1; }
-message StringColumn   { repeated google.protobuf.StringValue values = 1; }
-message BytesColumn    { repeated google.protobuf.BytesValue values = 1; }
-message TimestampColumn{ repeated google.protobuf.Int64Value values = 1; }
+message BoolColumn {
+  repeated common.OptionalBool values = 1;
+}
+
+message Int64Column {
+  repeated common.OptionalInt64 values = 1;
+}
+
+message UInt64Column {
+  repeated common.OptionalUInt64 values = 1;
+}
+
+message DoubleColumn {
+  repeated common.OptionalDouble values = 1;
+}
+
+message StringColumn {
+  repeated common.OptionalString values = 1;
+}
+
+message BytesColumn {
+  repeated common.OptionalBytes values = 1;
+}
+
+message TimestampColumn {
+  repeated common.OptionalTimestampMs values = 1;
+}
 
 message FacetColumn {
   repeated FacetWrapper values = 1;
-}
 
-message FacetWrapper {
-  repeated string facets = 1;
+  message FacetWrapper {
+    repeated string facets = 1;
+  }
 }
