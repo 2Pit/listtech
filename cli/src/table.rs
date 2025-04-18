@@ -1,4 +1,4 @@
-use searcher::api::proto::searcher::SearchResponse;
+use corelib::proto::searcher::SearchResponse;
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]

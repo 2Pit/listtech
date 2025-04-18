@@ -1,10 +1,10 @@
-use searcher::api::proto::searcher::SearchHit;
+use corelib::proto::searcher::SearchHit;
 use searcher::infra::index::SearchIndex;
 use searcher::infra::search::execute_search;
 
 use std::path::PathBuf;
 use tantivy::schema::*;
-use tantivy::{doc, Index};
+use tantivy::{Index, doc};
 
 fn create_test_index(dir: PathBuf) -> SearchIndex {
     let mut schema_builder = Schema::builder();
@@ -32,15 +32,16 @@ fn test_search_finds_macbook() {
     assert_eq!(hits.len(), 1);
     let hit = &hits[0];
 
-    assert!(hit
-        .fields
-        .iter()
-        .flat_map(|sf| sf.value.as_ref())
-        .any(|v| match v {
-            searcher::api::proto::searcher::search_field::Value::StringValue(s) =>
-                s.contains("macbook"),
-            _ => false,
-        }));
+    assert!(
+        hit.fields
+            .iter()
+            .flat_map(|sf| sf.value.as_ref())
+            .any(|v| match v {
+                corelib::proto::searcher::search_field::Value::StringValue(s) =>
+                    s.contains("macbook"),
+                _ => false,
+            })
+    );
 }
 
 #[test]

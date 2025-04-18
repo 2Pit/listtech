@@ -364,7 +364,6 @@ dependencies = [
  "corelib",
  "dotenvy",
  "prost-build",
- "searcher",
  "tabled",
  "tokio",
  "tonic",

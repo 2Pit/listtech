@@ -1,5 +1,6 @@
 use crate::domain::document::map_owned_value;
 use crate::infra::index::SearchIndex;
+use corelib::proto::searcher::SearchHit;
 use std::collections::HashMap;
 use tantivy::{
     collector::TopDocs,
@@ -7,8 +8,6 @@ use tantivy::{
     schema::{Field, OwnedValue},
 };
 use tonic::Status;
-
-use crate::api::proto::searcher::SearchHit;
 
 /// Выполняет простой BM25-поиск по полям title и description.
 pub fn execute_search(index: &SearchIndex, query_str: &str) -> Result<Vec<SearchHit>, Status> {

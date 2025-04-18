@@ -1,7 +1,7 @@
+use corelib::proto::indexer::indexable_field::FacetWrapper as FacetWrapperStruct;
+use corelib::proto::indexer::indexable_field::Value::*;
+use corelib::proto::indexer::{Document, IndexableField};
 use indexer::api::mapping::map_proto_to_tantivy_doc;
-use indexer::api::proto::indexer::indexable_field::FacetWrapper as FacetWrapperStruct;
-use indexer::api::proto::indexer::indexable_field::Value::*;
-use indexer::api::proto::indexer::{Document, IndexableField};
 use indexer::infra::schema::build_schema;
 use tantivy::Index;
 

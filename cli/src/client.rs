@@ -1,4 +1,4 @@
-use searcher::api::proto::searcher::search_service_client::SearchServiceClient;
+use corelib::proto::searcher::search_service_client::SearchServiceClient;
 use tonic::transport::Channel;
 // use tonic::transport::channel::Channel;
 

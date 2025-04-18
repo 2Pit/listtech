@@ -1,7 +1,7 @@
 use crate::api::mapping::map_proto_to_tantivy_doc;
-use crate::api::proto::indexer::Document;
 use crate::domain::document::extract_asin;
 use crate::infra::index::IndexState;
+use corelib::proto::indexer::Document;
 
 use anyhow::{Context, Result};
 use tantivy::schema::Term;

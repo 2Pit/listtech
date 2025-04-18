@@ -1,9 +1,9 @@
-use crate::api::proto::indexer::indexable_field::Value;
-use crate::api::proto::indexer::Document;
-use tantivy::schema::document::TantivyDocument;
-use tantivy::schema::{Facet, Schema, Type};
+use corelib::proto::indexer::Document;
+use corelib::proto::indexer::indexable_field::Value;
 use tantivy::DateTime;
 use tantivy::TantivyError;
+use tantivy::schema::document::TantivyDocument;
+use tantivy::schema::{Facet, Schema, Type};
 
 pub fn map_proto_to_tantivy_doc(
     doc: &Document,

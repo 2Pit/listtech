@@ -1,5 +1,5 @@
 use crate::api::grpc::IndexerGrpc;
-use crate::api::proto::indexer::indexer_api_server::IndexerApiServer;
+use corelib::proto::indexer::indexer_api_server::IndexerApiServer;
 
 use anyhow::{Context, Result};
 use std::path::Path;

@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
-use corelib::telemetry::init::{init_logging, read_env_var};
-use indexer::api::proto::indexer::{
+use corelib::proto::indexer::{
     AddDocumentRequest, Document, IndexableField, indexable_field::FacetWrapper,
     indexable_field::Value, indexer_api_client::IndexerApiClient,
 };
+use corelib::telemetry::init::{init_logging, read_env_var};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use tonic::Request;

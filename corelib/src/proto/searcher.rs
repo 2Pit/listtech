@@ -67,21 +67,21 @@ pub mod column_vector {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Values {
         #[prost(message, tag = "2")]
-        BoolColumn(super::BoolColumn),
+        Bools(super::BoolColumn),
         #[prost(message, tag = "3")]
-        UlongColumn(super::UInt64Column),
+        Ulongs(super::UInt64Column),
         #[prost(message, tag = "4")]
-        LongColumn(super::Int64Column),
+        Longs(super::Int64Column),
         #[prost(message, tag = "5")]
-        DoubleColumn(super::DoubleColumn),
+        Doubles(super::DoubleColumn),
         #[prost(message, tag = "6")]
-        StringColumn(super::StringColumn),
+        Strings(super::StringColumn),
         #[prost(message, tag = "7")]
-        BytesColumn(super::BytesColumn),
+        Bytes(super::BytesColumn),
         #[prost(message, tag = "8")]
-        TimestampColumn(super::TimestampColumn),
+        Timestamps(super::TimestampColumn),
         #[prost(message, tag = "9")]
-        FacetColumn(super::FacetColumn),
+        Facets(super::FacetColumn),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -122,15 +122,7 @@ pub struct TimestampColumn {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FacetColumn {
     #[prost(message, repeated, tag = "1")]
-    pub values: ::prost::alloc::vec::Vec<facet_column::FacetWrapper>,
-}
-/// Nested message and enum types in `FacetColumn`.
-pub mod facet_column {
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct FacetWrapper {
-        #[prost(string, repeated, tag = "1")]
-        pub facets: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    }
+    pub values: ::prost::alloc::vec::Vec<super::common::OptionalString>,
 }
 /// Generated client implementations.
 pub mod search_service_client {
@@ -245,6 +237,30 @@ pub mod search_service_client {
                 .insert(GrpcMethod::new("searcher.SearchService", "Search"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn search_matrix(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SearchRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SearchMatrixResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/searcher.SearchService/SearchMatrix",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("searcher.SearchService", "SearchMatrix"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -264,6 +280,13 @@ pub mod search_service_server {
             &self,
             request: tonic::Request<super::SearchRequest>,
         ) -> std::result::Result<tonic::Response<super::SearchResponse>, tonic::Status>;
+        async fn search_matrix(
+            &self,
+            request: tonic::Request<super::SearchRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SearchMatrixResponse>,
+            tonic::Status,
+        >;
     }
     /// gRPC сервис с HTTP аннотациями для swagger
     #[derive(Debug)]
@@ -372,6 +395,51 @@ pub mod search_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = SearchSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/searcher.SearchService/SearchMatrix" => {
+                    #[allow(non_camel_case_types)]
+                    struct SearchMatrixSvc<T: SearchService>(pub Arc<T>);
+                    impl<
+                        T: SearchService,
+                    > tonic::server::UnaryService<super::SearchRequest>
+                    for SearchMatrixSvc<T> {
+                        type Response = super::SearchMatrixResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SearchRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as SearchService>::search_matrix(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SearchMatrixSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

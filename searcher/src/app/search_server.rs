@@ -1,5 +1,5 @@
-use crate::api::proto::searcher::search_service_server::SearchServiceServer;
 use crate::infra::index::SearchIndex;
+use corelib::proto::searcher::search_service_server::SearchServiceServer;
 
 use anyhow::{Context, Result};
 use std::path::Path;

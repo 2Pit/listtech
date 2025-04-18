@@ -1,6 +1,6 @@
-use searcher::api::proto::searcher::{
-    search_service_client::SearchServiceClient, search_service_server::SearchServiceServer,
-    SearchRequest,
+use corelib::proto::searcher::{
+    SearchRequest, search_service_client::SearchServiceClient,
+    search_service_server::SearchServiceServer,
 };
 use searcher::infra::index::SearchIndex;
 
@@ -8,11 +8,11 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tempfile::tempdir;
 use tokio::sync::oneshot;
-use tonic::transport::{Endpoint, Server};
 use tonic::Request;
+use tonic::transport::{Endpoint, Server};
 
 use tantivy::schema::*;
-use tantivy::{doc, Index};
+use tantivy::{Index, doc};
 
 fn create_test_index() -> SearchIndex {
     let dir = tempdir().unwrap();
@@ -81,14 +81,16 @@ async fn test_grpc_search_macbook() {
     // 5. Проверяем результат
     assert_eq!(response.hits.len(), 1);
     let fields = &response.hits[0].fields;
-    assert!(fields
-        .iter()
-        .flat_map(|sf| sf.value.as_ref())
-        .any(|v| match v {
-            searcher::api::proto::searcher::search_field::Value::StringValue(s) =>
-                s.contains("macbook"),
-            _ => false,
-        }));
+    assert!(
+        fields
+            .iter()
+            .flat_map(|sf| sf.value.as_ref())
+            .any(|v| match v {
+                corelib::proto::searcher::search_field::Value::StringValue(s) =>
+                    s.contains("macbook"),
+                _ => false,
+            })
+    );
 
     // 6. Останавливаем сервер
     let _ = shutdown_tx.send(());

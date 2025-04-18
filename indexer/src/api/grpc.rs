@@ -1,8 +1,8 @@
-use crate::api::proto::indexer::indexer_api_server::IndexerApi;
-use crate::api::proto::indexer::*;
 use crate::infra::index::IndexState;
 use crate::infra::index_writer::index_document;
 use crate::infra::schema::build_schema;
+use corelib::proto::indexer::indexer_api_server::IndexerApi;
+use corelib::proto::indexer::*;
 use std::path::Path;
 use tonic::{Request, Response, Status};
 

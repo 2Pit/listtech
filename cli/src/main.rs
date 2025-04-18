@@ -4,8 +4,8 @@ mod display;
 use anyhow::Result;
 use clap::Parser;
 use client::create_client;
-use display::print_hits_table;
-use searcher::api::proto::searcher::SearchRequest;
+use corelib::proto::searcher::SearchRequest;
+use display::print_matrix_table;
 
 use corelib::telemetry::init::{init_logging, read_env_var};
 
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     let mut client = create_client(&addr).await?;
 
     let response = client
-        .search(tonic::Request::new(SearchRequest {
+        .search_matrix(tonic::Request::new(SearchRequest {
             query: Cli::parse().query,
             // filters: vec![],
             // sort_by: vec![],
@@ -37,6 +37,6 @@ async fn main() -> Result<()> {
         .await?
         .into_inner();
 
-    print_hits_table(&response.hits)?;
+    print_matrix_table(response)?;
     Ok(())
 }

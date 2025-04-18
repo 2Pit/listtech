@@ -1,4 +1,4 @@
-use crate::api::proto::searcher::{search_field::FacetWrapper, search_field::Value, SearchField};
+use corelib::proto::searcher::{SearchField, search_field::FacetWrapper, search_field::Value};
 use tantivy::schema::OwnedValue;
 
 pub fn map_owned_value(field_name: &str, value: OwnedValue) -> SearchField {
@@ -19,7 +19,7 @@ pub fn map_owned_value(field_name: &str, value: OwnedValue) -> SearchField {
             return SearchField {
                 name: field_name.to_string(),
                 value: None,
-            }
+            };
         }
     };
 

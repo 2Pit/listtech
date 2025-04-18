@@ -15,6 +15,13 @@ service SearchService {
       body: "*"
     };
   }
+
+  rpc SearchMatrix (SearchRequest) returns (SearchMatrixResponse) {
+    option (google.api.http) = {
+      post: "/v1/search_matrix"
+      body: "*"
+    };
+  }
 }
 
 message SearchRequest {
@@ -57,14 +64,14 @@ message ColumnVector {
   string name = 1;
 
   oneof values {
-    BoolColumn bool_column = 2;
-    UInt64Column ulong_column = 3;
-    Int64Column long_column = 4;
-    DoubleColumn double_column = 5;
-    StringColumn string_column = 6;
-    BytesColumn bytes_column = 7;
-    TimestampColumn timestamp_column = 8;
-    FacetColumn facet_column = 9;
+    BoolColumn bools = 2;
+    UInt64Column ulongs = 3;
+    Int64Column longs = 4;
+    DoubleColumn doubles = 5;
+    StringColumn strings = 6;
+    BytesColumn bytes = 7;
+    TimestampColumn timestamps = 8;
+    FacetColumn facets = 9;
   }
 }
 
@@ -97,9 +104,5 @@ message TimestampColumn {
 }
 
 message FacetColumn {
-  repeated FacetWrapper values = 1;
-
-  message FacetWrapper {
-    repeated string facets = 1;
-  }
+  repeated common.OptionalString values = 1;
 }

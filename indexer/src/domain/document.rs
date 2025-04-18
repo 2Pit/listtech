@@ -1,5 +1,5 @@
-use crate::api::proto::indexer::indexable_field::Value;
-use crate::api::proto::indexer::Document;
+use corelib::proto::indexer::Document;
+use corelib::proto::indexer::indexable_field::Value;
 
 /// Извлекает значение поля `asin` из protobuf-документа (если есть)
 pub fn extract_asin(doc: &Document) -> Option<String> {

@@ -1,5 +1,8 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=../_proto");
+    println!("cargo:rerun-if-changed=../_proto/indexer.proto");
+    println!("cargo:rerun-if-changed=../_proto/searcher.proto");
+    println!("cargo:rerun-if-changed=../_proto/common.proto");
 
     let out_dir = "src/proto";
     let proto_files = ["../_proto/indexer.proto", "../_proto/searcher.proto"];
