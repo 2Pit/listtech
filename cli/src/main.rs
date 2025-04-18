@@ -1,11 +1,12 @@
 mod client;
 mod display;
+mod table;
 
 use anyhow::Result;
 use clap::Parser;
 use client::create_client;
 use corelib::proto::searcher::SearchRequest;
-use display::print_matrix_table;
+use table::print_results;
 
 use corelib::telemetry::init::{init_logging, read_env_var};
 
@@ -27,16 +28,12 @@ async fn main() -> Result<()> {
     let mut client = create_client(&addr).await?;
 
     let response = client
-        .search_matrix(tonic::Request::new(SearchRequest {
+        .search(tonic::Request::new(SearchRequest {
             query: Cli::parse().query,
-            // filters: vec![],
-            // sort_by: vec![],
-            // offset: 0,
-            // limit: 10,
         }))
         .await?
         .into_inner();
 
-    print_matrix_table(response)?;
+    print_results(&response)?;
     Ok(())
 }

@@ -1,10 +1,10 @@
-use corelib::proto::searcher::SearchHit;
+use corelib::proto::searcher::search_field::Value;
 use searcher::infra::index::SearchIndex;
-use searcher::infra::search::execute_search;
+use searcher::infra::search::{build_search_response, execute_search};
 
 use std::path::PathBuf;
 use tantivy::schema::*;
-use tantivy::{Index, doc};
+use tantivy::{Index, Score, doc};
 
 fn create_test_index(dir: PathBuf) -> SearchIndex {
     let mut schema_builder = Schema::builder();
@@ -28,19 +28,17 @@ fn test_search_finds_macbook() {
     let tmp = tempfile::tempdir().unwrap();
     let index = create_test_index(tmp.path().to_path_buf());
 
-    let hits: Vec<SearchHit> = execute_search(&index, "macbook").unwrap();
-    assert_eq!(hits.len(), 1);
-    let hit = &hits[0];
+    let top_docs: Vec<(Score, tantivy::DocAddress)> = execute_search(&index, "macbook").unwrap();
+    let response = build_search_response(&index, &top_docs).unwrap();
+
+    assert_eq!(response.hits.len(), 1);
+    let hit = &response.hits[0];
 
     assert!(
         hit.fields
             .iter()
             .flat_map(|sf| sf.value.as_ref())
-            .any(|v| match v {
-                corelib::proto::searcher::search_field::Value::StringValue(s) =>
-                    s.contains("macbook"),
-                _ => false,
-            })
+            .any(|v| matches!(v, Value::StringValue(s) if s.contains("macbook")))
     );
 }
 
@@ -49,6 +47,8 @@ fn test_search_unknown_word() {
     let tmp = tempfile::tempdir().unwrap();
     let index = create_test_index(tmp.path().to_path_buf());
 
-    let hits: Vec<SearchHit> = execute_search(&index, "nobody").unwrap();
-    assert_eq!(hits.len(), 0);
+    let top_docs: Vec<(Score, tantivy::DocAddress)> = execute_search(&index, "nobody").unwrap();
+    let response = build_search_response(&index, &top_docs).unwrap();
+
+    assert_eq!(response.hits.len(), 0);
 }

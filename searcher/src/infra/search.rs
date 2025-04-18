@@ -1,23 +1,27 @@
 use crate::domain::document::map_owned_value;
 use crate::infra::index::SearchIndex;
-use corelib::proto::searcher::SearchHit;
+use corelib::proto::common::*;
+use corelib::proto::searcher::{SearchField, SearchMatrixResponse, column_vector::Values, *};
 use std::collections::HashMap;
 use tantivy::{
+    DocAddress, Score,
     collector::TopDocs,
     query::QueryParser,
-    schema::{Field, OwnedValue},
+    schema::{Field, FieldType, OwnedValue, Schema},
 };
 use tonic::Status;
 
-/// Выполняет простой BM25-поиск по полям title и description.
-pub fn execute_search(index: &SearchIndex, query_str: &str) -> Result<Vec<SearchHit>, Status> {
+pub fn execute_search(
+    index: &SearchIndex,
+    query_str: &str,
+) -> Result<Vec<(Score, DocAddress)>, Status> {
     let searcher = index.reader.searcher();
     let schema = index.index.schema();
 
-    let default_fields: Vec<Field> = ["title", "description"]
+    let default_fields = ["title", "description"]
         .iter()
         .filter_map(|&name| schema.get_field(name).ok())
-        .collect();
+        .collect::<Vec<_>>();
 
     let parser = QueryParser::for_index(&index.index, default_fields);
     let query = parser
@@ -28,22 +32,208 @@ pub fn execute_search(index: &SearchIndex, query_str: &str) -> Result<Vec<Search
         .search(&query, &TopDocs::with_limit(10))
         .map_err(|e| Status::internal(format!("Search failed: {e}")))?;
 
-    let mut hits = Vec::new();
+    Ok(top_docs)
+}
 
-    for (_score, addr) in top_docs {
-        let retrieved: HashMap<Field, OwnedValue> = searcher
+pub fn build_search_response(
+    index: &SearchIndex,
+    top_docs: &[(Score, DocAddress)],
+) -> Result<SearchResponse, Status> {
+    let searcher = index.reader.searcher();
+    let schema = index.index.schema();
+
+    let mut hits = Vec::with_capacity(top_docs.len());
+
+    for &(_, addr) in top_docs {
+        let doc: HashMap<Field, OwnedValue> = searcher
             .doc(addr)
-            .map_err(|e| Status::internal(format!("Failed to retrieve document: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to retrieve doc: {e}")))?;
 
-        let mut fields = vec![];
-
-        for (field, value) in retrieved.into_iter() {
-            let field_name = schema.get_field_name(field);
-            fields.push(map_owned_value(field_name, value));
-        }
+        let fields = doc
+            .into_iter()
+            .map(|(field, value)| {
+                let name = schema.get_field_name(field);
+                map_owned_value(name, value)
+            })
+            .collect::<Vec<SearchField>>();
 
         hits.push(SearchHit { fields });
     }
 
-    Ok(hits)
+    Ok(SearchResponse { hits })
+}
+
+pub fn build_matrix_response(
+    index: &SearchIndex,
+    top_docs: &[(Score, DocAddress)],
+) -> Result<SearchMatrixResponse, Status> {
+    let searcher = index.reader.searcher();
+    let schema = index.index.schema();
+
+    let mut matrix: HashMap<u32, Vec<OwnedValue>> = HashMap::with_capacity(schema.num_fields());
+    let init_vec = || Vec::with_capacity(top_docs.len());
+    for &(_, addr) in top_docs {
+        let doc: HashMap<Field, OwnedValue> = searcher
+            .doc(addr)
+            .map_err(|e| Status::internal(format!("Failed to retrieve doc: {e}")))?;
+
+        for (field, value) in doc {
+            matrix
+                .entry(field.field_id())
+                .or_insert_with(init_vec)
+                .push(value);
+        }
+    }
+
+    let row_count = top_docs.len() as u32;
+
+    let columns = matrix
+        .into_iter()
+        .map(|(id, values)| {
+            let field = Field::from_field_id(id);
+            let name = schema.get_field_name(field).to_string();
+            values_to_column(name, values, &schema).expect("must be valid")
+        })
+        .collect();
+
+    Ok(SearchMatrixResponse { row_count, columns })
+}
+
+pub fn values_to_column(
+    name: String,
+    values: Vec<OwnedValue>,
+    schema: &Schema,
+) -> Result<ColumnVector, Status> {
+    let field = schema
+        .get_field(&name)
+        .map_err(|_| Status::invalid_argument(format!("Field not in schema: {name}")))?;
+
+    let field_type = schema.get_field_entry(field).field_type();
+
+    let column = match field_type {
+        FieldType::Bool(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalBool {
+                    value: match v {
+                        OwnedValue::Bool(b) => Some(b),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Bools(BoolColumn { values })),
+            }
+        }
+        FieldType::U64(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalUInt64 {
+                    value: match v {
+                        OwnedValue::U64(u) => Some(u),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Ulongs(UInt64Column { values })),
+            }
+        }
+        FieldType::I64(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalInt64 {
+                    value: match v {
+                        OwnedValue::I64(i) => Some(i),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Longs(Int64Column { values })),
+            }
+        }
+        FieldType::F64(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalDouble {
+                    value: match v {
+                        OwnedValue::F64(f) => Some(f),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Doubles(DoubleColumn { values })),
+            }
+        }
+        FieldType::Str(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalString {
+                    value: match v {
+                        OwnedValue::Str(s) => Some(s),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Strings(StringColumn { values })),
+            }
+        }
+        FieldType::Bytes(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalBytes {
+                    value: match v {
+                        OwnedValue::Bytes(b) => Some(b),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Bytes(BytesColumn { values })),
+            }
+        }
+        FieldType::Facet(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalString {
+                    value: match v {
+                        OwnedValue::Facet(f) => Some(f.to_path_string()),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Facets(FacetColumn { values })),
+            }
+        }
+        FieldType::Date(_) => {
+            let values = values
+                .into_iter()
+                .map(|v| OptionalTimestampMs {
+                    value: match v {
+                        OwnedValue::Date(dt) => Some(dt.into_timestamp_millis()),
+                        _ => None,
+                    },
+                })
+                .collect();
+            ColumnVector {
+                name,
+                values: Some(Values::Timestamps(TimestampColumn { values })),
+            }
+        }
+        FieldType::JsonObject(_) => todo!(),
+        FieldType::IpAddr(_) => todo!(),
+    };
+
+    Ok(column)
 }

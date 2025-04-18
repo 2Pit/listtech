@@ -1,5 +1,5 @@
 use crate::infra::index::SearchIndex;
-use crate::infra::search::execute_search;
+use crate::infra::search::*;
 use corelib::proto::searcher::{
     SearchMatrixResponse, SearchRequest, SearchResponse, search_service_server::SearchService,
 };
@@ -12,14 +12,18 @@ impl SearchService for SearchIndex {
         request: Request<SearchRequest>,
     ) -> Result<Response<SearchResponse>, Status> {
         let query_str = request.into_inner().query;
-        let hits = execute_search(self, &query_str)?;
-        Ok(Response::new(SearchResponse { hits }))
+        let top_docs = execute_search(self, &query_str)?;
+        let response = build_search_response(self, &top_docs)?;
+        Ok(Response::new(response))
     }
 
     async fn search_matrix(
         &self,
-        _request: Request<SearchRequest>,
+        request: Request<SearchRequest>,
     ) -> Result<Response<SearchMatrixResponse>, Status> {
-        todo!()
+        let query_str = request.into_inner().query;
+        let top_docs = execute_search(self, &query_str)?;
+        let response = build_matrix_response(self, &top_docs)?;
+        Ok(Response::new(response))
     }
 }
