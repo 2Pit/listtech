@@ -41,11 +41,28 @@ pub fn extract_projection(query: &SqlQuery, schema: &Schema) -> Result<Vec<Field
     let fields = select
         .projection
         .iter()
-        .map(|item| match item {
-            SelectItem::UnnamedExpr(Expr::Identifier(ident)) => {
-                schema.get_field(&ident.value).map_err(|e| anyhow!(e))
+        .map(|item| {
+            // 1) Получили Ident или сразу Err:
+            let ident = match item {
+                SelectItem::UnnamedExpr(Expr::Identifier(ident)) => ident,
+                other => return Err(anyhow!("Unsupported projection item: {:?}", other)),
+            };
+
+            // 2) Конвертируем Option (schema.get_field) в Result:
+            let field = schema
+                .get_field(&ident.value)
+                .map_err(|e| anyhow!(e.to_string()))?;
+
+            // 3) Проверяем, stored ли оно, или возвращаем Err:
+            if !schema.get_field_entry(field).is_stored() {
+                return Err(anyhow!(
+                    "Field '{}' is not stored",
+                    schema.get_field_entry(field).name()
+                ));
             }
-            other => Err(anyhow!("Unsupported projection item: {:?}", other)),
+
+            // 4) Всё ок → вернули field
+            Ok(field)
         })
         .collect::<Result<Vec<_>>>()?;
 
