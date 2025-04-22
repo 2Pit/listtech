@@ -73,6 +73,7 @@ async fn test_grpc_search_macbook() {
     let response = client
         .search(Request::new(SearchRequest {
             query: "SELECT title FROM products WHERE title = 'macbook'".into(),
+            return_fields: vec!["title".into()],
         }))
         .await
         .unwrap()

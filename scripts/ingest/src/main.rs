@@ -7,7 +7,7 @@ use corelib::proto::indexer::{
 use corelib::telemetry::init::{init_logging, read_env_var};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use tonic::Request;
+use tonic::{IntoRequest, Request};
 use tracing::{error, info};
 
 #[tokio::main]
@@ -122,17 +122,20 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
     }
 
     if let Some(arr) = json.get("category").and_then(|v| v.as_array()) {
-        let mut path = String::new();
-        let mut facets = vec![];
-        for segment in arr.iter().filter_map(|v| v.as_str()) {
-            path.push('/');
-            path.push_str(segment);
-            facets.push(path.clone());
+        let path = arr
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect::<Vec<_>>()
+            .join("/");
+
+        if !path.is_empty() {
+            fields.push(IndexableField {
+                name: "category".to_string(),
+                value: Some(Value::FacetWrapper(FacetWrapper {
+                    facets: vec![format!("/{}", path)],
+                })),
+            });
         }
-        fields.push(IndexableField {
-            name: "category".to_string(),
-            value: None,
-        });
     }
 
     if let Some(arr) = json.get("rank").and_then(|v| v.as_array()) {

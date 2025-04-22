@@ -3,6 +3,8 @@
 pub struct SearchRequest {
     #[prost(string, tag = "1")]
     pub query: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub return_fields: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SearchResponse {

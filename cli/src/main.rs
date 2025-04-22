@@ -14,6 +14,9 @@ struct Cli {
     /// Текст запроса
     #[arg(long)]
     query: String,
+    /// Поля, которые нужно вернуть
+    #[arg(long, num_args = 1..)]
+    fields: Vec<String>,
 }
 
 #[tokio::main]
@@ -29,6 +32,7 @@ async fn main() -> Result<()> {
     let response = client
         .search(tonic::Request::new(SearchRequest {
             query: Cli::parse().query,
+            return_fields: Cli::parse().fields,
         }))
         .await?
         .into_inner();

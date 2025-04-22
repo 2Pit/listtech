@@ -26,6 +26,7 @@ service SearchService {
 
 message SearchRequest {
   string query = 1;
+  repeated string return_fields = 2;
 }
 
 message SearchResponse {
