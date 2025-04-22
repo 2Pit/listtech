@@ -1,5 +1,4 @@
 mod client;
-mod display;
 mod table;
 
 use anyhow::Result;

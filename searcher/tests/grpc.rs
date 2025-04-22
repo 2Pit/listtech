@@ -28,7 +28,11 @@ fn create_test_index() -> SearchIndex {
     writer.commit().unwrap();
 
     let reader = index.reader().unwrap();
-    SearchIndex { index, reader }
+    SearchIndex {
+        index,
+        reader,
+        all_fields: vec![title],
+    }
 }
 
 #[tokio::test]
@@ -72,7 +76,7 @@ async fn test_grpc_search_macbook() {
     // 4. Делаем запрос
     let response = client
         .search(Request::new(SearchRequest {
-            query: "macbook".into(),
+            query: "SELECT title FROM products WHERE title = 'macbook'".into(),
         }))
         .await
         .unwrap()

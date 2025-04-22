@@ -2,31 +2,32 @@ use crate::domain::document::map_owned_value;
 use crate::infra::index::SearchIndex;
 use corelib::proto::common::*;
 use corelib::proto::searcher::{SearchField, SearchMatrixResponse, column_vector::Values, *};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tantivy::{
     DocAddress, Score,
     collector::TopDocs,
-    query::QueryParser,
+    query::Query,
     schema::{Field, FieldType, OwnedValue, Schema},
 };
 use tonic::Status;
 
 pub fn execute_search(
     index: &SearchIndex,
-    query_str: &str,
+    // query_str: &str,
+    query: Box<dyn Query>,
 ) -> Result<Vec<(Score, DocAddress)>, Status> {
     let searcher = index.reader.searcher();
-    let schema = index.index.schema();
+    // let schema = index.index.schema();
 
-    let default_fields = ["title", "description"]
-        .iter()
-        .filter_map(|&name| schema.get_field(name).ok())
-        .collect::<Vec<_>>();
+    // let default_fields = ["title", "description"]
+    //     .iter()
+    //     .filter_map(|&name| schema.get_field(name).ok())
+    //     .collect::<Vec<_>>();
 
-    let parser = QueryParser::for_index(&index.index, default_fields);
-    let query = parser
-        .parse_query(query_str)
-        .map_err(|e| Status::invalid_argument(format!("Invalid query: {e}")))?;
+    // let parser = QueryParser::for_index(&index.index, default_fields);
+    // let query = parser
+    //     .parse_query(query_str)
+    //     .map_err(|e| Status::invalid_argument(format!("Invalid query: {e}")))?;
 
     let top_docs = searcher
         .search(&query, &TopDocs::with_limit(10))
@@ -38,11 +39,14 @@ pub fn execute_search(
 pub fn build_search_response(
     index: &SearchIndex,
     top_docs: &[(Score, DocAddress)],
+    projection: Vec<Field>,
 ) -> Result<SearchResponse, Status> {
     let searcher = index.reader.searcher();
     let schema = index.index.schema();
 
     let mut hits = Vec::with_capacity(top_docs.len());
+
+    let field_set: HashSet<Field> = HashSet::from_iter(projection.into_iter());
 
     for &(_, addr) in top_docs {
         let doc: HashMap<Field, OwnedValue> = searcher
@@ -52,9 +56,14 @@ pub fn build_search_response(
         let fields = doc
             .into_iter()
             .map(|(field, value)| {
-                let name = schema.get_field_name(field);
-                map_owned_value(name, value)
+                if field_set.contains(&field) {
+                    let name = schema.get_field_name(field);
+                    Some(map_owned_value(name, value))
+                } else {
+                    None
+                }
             })
+            .flatten()
             .collect::<Vec<SearchField>>();
 
         hits.push(SearchHit { fields });

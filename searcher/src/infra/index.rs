@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
 use std::path::Path;
-use tantivy::{Index, IndexReader, ReloadPolicy};
+use tantivy::{Index, IndexReader, ReloadPolicy, schema::Field};
 
 pub struct SearchIndex {
     pub index: Index,
     pub reader: IndexReader,
+    pub all_fields: Vec<Field>,
 }
 
 impl SearchIndex {
@@ -18,6 +19,12 @@ impl SearchIndex {
             .try_into()
             .context("Failed to create IndexReader")?;
 
-        Ok(Self { index, reader })
+        let all_fields = index.schema().fields().map(|f| f.0).collect();
+
+        Ok(Self {
+            index,
+            reader,
+            all_fields,
+        })
     }
 }

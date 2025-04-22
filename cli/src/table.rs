@@ -4,12 +4,12 @@ use corelib::proto::searcher::{SearchField, SearchResponse, search_field::Value}
 use std::collections::{BTreeMap, BTreeSet};
 
 fn format_date(ts_millis: i64) -> String {
-    let naive = DateTime::from_timestamp_millis(ts_millis)
-        .unwrap_or_else(|| DateTime::from_timestamp(0, 0).expect("!!!!!!!"));
-
-    let date = naive.date_naive(); // извлекаем только дату
-    format!("{}", date) // формат YYYY-MM-DD
+    DateTime::from_timestamp_millis(ts_millis)
+        .map(|date_time| date_time.date_naive())
+        .map(|native| format!("{}", native))
+        .unwrap_or_else(|| "err".to_string())
 }
+
 pub fn print_results(resp: &SearchResponse) -> anyhow::Result<()> {
     if resp.hits.is_empty() {
         println!("No results found.");
@@ -28,8 +28,9 @@ pub fn print_results(resp: &SearchResponse) -> anyhow::Result<()> {
     let mut table = Table::new();
     table
         .load_preset(UTF8_FULL)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_width(140); // Или 100, или динамически можно читать ширину терминала
+        .set_content_arrangement(ContentArrangement::Dynamic);
+    // .set
+    // .set_width(140); // Или 100, или динамически можно читать ширину терминала
 
     // Заголовки
     let mut headers = vec![Cell::new("#")];
@@ -42,14 +43,24 @@ pub fn print_results(resp: &SearchResponse) -> anyhow::Result<()> {
 
         for SearchField { name, value } in &hit.fields {
             let val_str = match value {
-                Some(Value::StringValue(s)) => s.chars().take(10).collect(),
+                Some(Value::StringValue(s)) => {
+                    format!("\"{}\"", s.chars().take(10).collect::<String>())
+                }
                 Some(Value::DoubleValue(f)) => format!("{f:.2}"),
                 Some(Value::UlongValue(u)) => u.to_string(),
                 Some(Value::LongValue(i)) => i.to_string(),
                 Some(Value::BoolValue(b)) => b.to_string(),
                 Some(Value::BytesValue(b)) => format!("{:?}", b),
                 Some(Value::TimestampMsValue(ts)) => format_date(*ts),
-                Some(Value::FacetWrapper(f)) => format!("[{}]", f.facets.join(", ")),
+                Some(Value::FacetWrapper(f)) => {
+                    format!(
+                        "[{}]",
+                        f.facets
+                            .iter()
+                            .map(|facet| format!("\"{}\", ", facet.to_string()))
+                            .collect::<String>()
+                    )
+                }
                 None => "".to_string(),
             };
             field_map.insert(name.clone(), val_str);
