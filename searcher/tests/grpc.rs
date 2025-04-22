@@ -28,11 +28,7 @@ fn create_test_index() -> SearchIndex {
     writer.commit().unwrap();
 
     let reader = index.reader().unwrap();
-    SearchIndex {
-        index,
-        reader,
-        all_fields: vec![title],
-    }
+    SearchIndex { index, reader }
 }
 
 #[tokio::test]
