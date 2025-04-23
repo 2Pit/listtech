@@ -31,7 +31,8 @@ impl SearchService for SearchIndex {
         let top_docs = execute_search(self, query_str.as_str())
             .map_err(|e| Status::internal(format!("Search execution failed: {}", e)))?;
 
-        let response = build_search_response(self, &top_docs, projection)
+        let projection_strs: Vec<&str> = projection.iter().map(|s| s.as_str()).collect();
+        let response = build_search_response(self, &top_docs, &projection_strs)
             .map_err(|e| Status::internal(format!("Failed to build search response: {}", e)))?;
 
         Ok(Response::new(response))

@@ -1,5 +1,5 @@
 use crate::infra::index::IndexState;
-use crate::infra::index_writer::index_document;
+use crate::infra::index_writer::*;
 use crate::infra::schema::build_schema;
 use corelib::proto::indexer::indexer_api_server::IndexerApi;
 use corelib::proto::indexer::*;
@@ -30,7 +30,7 @@ impl IndexerApi for IndexerGrpc {
             .document
             .ok_or_else(|| Status::invalid_argument("Document is missing"))?;
 
-        index_document(&self.index, doc)
+        add_document_safely(&self.index, doc)
             .await
             .map_err(|e| Status::invalid_argument(format!("Document indexing failed: {e}")))?;
 

@@ -7,7 +7,7 @@ use corelib::proto::indexer::{
 use corelib::telemetry::init::{init_logging, read_env_var};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use tonic::{IntoRequest, Request};
+use tonic::Request;
 use tracing::{error, info};
 
 #[tokio::main]
@@ -23,9 +23,9 @@ async fn main() -> Result<()> {
     let reader = BufReader::new(file);
 
     for (i, line) in reader.lines().enumerate() {
-        if i >= 1000 {
-            break;
-        }
+        // if i >= 1000 {
+        // break;
+        // }
 
         let line = line?;
         let json: serde_json::Value =
@@ -65,17 +65,16 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
 
     macro_rules! add_optional_string_array_first {
         ($name:expr) => {
-            if let Some(first) = json
+            let val = json
                 .get($name)
                 .and_then(|v| v.as_array())
-                .and_then(|arr| arr.first())
-                .and_then(|v| v.as_str())
-            {
-                fields.push(IndexableField {
-                    name: $name.to_string(),
-                    value: Some(Value::StringValue(first.to_string())),
-                });
-            }
+                .map(|arr| arr.first().and_then(|v| v.as_str()).unwrap_or(""))
+                .unwrap_or("");
+
+            fields.push(IndexableField {
+                name: $name.to_string(),
+                value: Some(Value::StringValue(val.to_string())),
+            });
         };
     }
 
@@ -85,7 +84,7 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
     add_string!("brand_string");
     add_string!("tech1");
     add_string!("tech2");
-    add_string!("similar_item");
+    // add_string!("similar_item");
     add_string!("image_url");
     add_string!("image_url_high_res");
 
@@ -150,18 +149,31 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                         });
                     }
 
-                    let segments: Vec<_> = cat_str.split(" > ").collect();
-                    let mut path = String::new();
-                    let mut facets = vec![];
-                    for seg in segments {
-                        path.push('/');
-                        path.push_str(seg);
-                        facets.push(path.clone());
-                    }
+                    let facet_path = format!(
+                        "/{}",
+                        cat_str.replace(" &gt; ", "/").replace(" > ", "/").trim()
+                    );
                     fields.push(IndexableField {
                         name: "rank_facet".to_string(),
-                        value: Some(Value::FacetWrapper(FacetWrapper { facets })),
+                        value: Some(Value::FacetWrapper(FacetWrapper {
+                            facets: vec![facet_path],
+                        })),
                     });
+                }
+            }
+        }
+    }
+
+    for f in &fields {
+        if let Some(Value::StringValue(ref s)) = f.value {
+            if s.len() > 65530 {
+                tracing::warn!(field = %f.name, len = s.len(), value = %s, "StringValue too long");
+            }
+        }
+        if let Some(Value::FacetWrapper(ref facet)) = f.value {
+            for facet_path in &facet.facets {
+                if facet_path.len() > 65530 {
+                    tracing::warn!(field = %f.name, len = facet_path.len(), value = %facet_path, "Facet path too long");
                 }
             }
         }

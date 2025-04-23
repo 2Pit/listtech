@@ -21,10 +21,10 @@ impl IndexState {
             Index::create_in_dir(path, schema.clone())?
         };
 
-        let writer = index.writer(500_000_000)?; // 500 MB
+        let writer = index.writer(2_000_000_000)?; // 2 GB
         let writer = Arc::new(Mutex::new(writer));
 
-        // автокоммит
+        // автокоммит по таймеру
         {
             let writer_clone = writer.clone();
             tokio::spawn(async move {

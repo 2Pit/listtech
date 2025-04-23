@@ -40,8 +40,14 @@ sqlparser = "0.55.0"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 tokio-stream = { version = "0.1", features = ["net"] }
+criterion = "0.5"
 
 [build-dependencies]
 prost-build = "0.13"
 tonic-build = "0.13"
 tokio = { version = "1", features = ["full"] }
+
+
+[[bench]]
+name = "ram_vs_mmap"
+harness = false

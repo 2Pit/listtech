@@ -17,7 +17,7 @@ pub fn build_schema() -> Schema {
     schema_builder.add_text_field("image_url_high_res", STRING | STORED); // URL изображения в высоком разрешении
     schema_builder.add_text_field("tech1", STRING | STORED); // Первая таблица тех. параметров (как строка)
     schema_builder.add_text_field("tech2", STRING | STORED); // Вторая таблица тех. параметров (как строка)
-    schema_builder.add_text_field("similar_item", STRING | STORED); // Схожий товар (обычно один ASIN)
+    // schema_builder.add_text_field("similar_item", STRING | STORED); // Схожий товар (обычно один ASIN)
 
     schema_builder.add_text_field("brand_string", STRING | STORED); // Название бренда как строка (для отображения в выдаче)
     schema_builder.add_facet_field("brand", FacetOptions::default().set_stored()); // Название бренда как фасет (для фильтрации)
