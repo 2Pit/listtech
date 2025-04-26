@@ -1,9 +1,9 @@
+use crate::api::AddDocumentRequest;
 use axum::{
     body::Body,
     extract::{FromRequest, Request},
     http::{StatusCode, header::CONTENT_TYPE},
 };
-use corelib::api::indexer::AddDocumentRequest;
 use serde::{Deserialize, Serialize};
 
 const MAX_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB лимит

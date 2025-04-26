@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::indexer_model::document::Document;
-use super::indexer_model::schema::Schema;
+use crate::api::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddDocumentRequest {

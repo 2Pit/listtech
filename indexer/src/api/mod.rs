@@ -1,3 +1,7 @@
-pub mod grpc;
-pub mod http;
-pub mod mapping;
+mod document;
+mod reqres;
+mod schema;
+
+pub use document::*;
+pub use reqres::*;
+pub use schema::*;

@@ -1,8 +1,8 @@
+use crate::api;
+use crate::api::{FieldType, FieldValue};
 use anyhow::Result;
 use anyhow::anyhow;
 use chrono::{DateTime as CronoDateTime, Utc};
-use corelib::api::indexer_model::document::*;
-use corelib::api::indexer_model::schema::FieldType;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json;
@@ -43,7 +43,7 @@ impl InnerSchema {
         Ok(schema)
     }
 
-    pub fn to_tantivy_doc(&self, doc: &Document) -> Result<TantivyDocument> {
+    pub fn to_tantivy_doc(&self, doc: &api::Document) -> Result<TantivyDocument> {
         let mut compact_doc = TantivyDocument::new();
 
         for field in &doc.fields {

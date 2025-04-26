@@ -1,12 +1,12 @@
-use crate::api::mapping::map_proto_to_tantivy_doc;
+use crate::api;
 use crate::infra::index::IndexState;
-use corelib::api::indexer_model::document::*;
-
 use anyhow::{Context, Result};
 use tantivy::schema::Term;
 
-pub async fn add_document_safely(index_state: &IndexState, doc: Document) -> Result<()> {
-    let tantivy_doc = map_proto_to_tantivy_doc(&doc, &index_state.index.schema())
+pub async fn add_document_safely(index_state: &IndexState, doc: api::Document) -> Result<()> {
+    let tantivy_doc = index_state
+        .schema
+        .to_tantivy_doc(&doc)
         .context("invalid document structure")?;
 
     let writer = index_state.writer.lock().await;
@@ -19,8 +19,8 @@ pub async fn add_document_safely(index_state: &IndexState, doc: Document) -> Res
         .ok_or_else(|| anyhow::anyhow!("ID not found"))
         .and_then(|field| field.value.ok_or_else(|| anyhow::anyhow!("ID is null")))
         .and_then(|id_value| match id_value {
-            FieldValue::String(id) => Ok(Term::from_field_text(id_col.tan_field, id.as_str())),
-            FieldValue::Long(id) => Ok(Term::from_field_i64(id_col.tan_field, id)),
+            api::FieldValue::String(id) => Ok(Term::from_field_text(id_col.tan_field, id.as_str())),
+            api::FieldValue::Long(id) => Ok(Term::from_field_i64(id_col.tan_field, id)),
             other => Err(anyhow::anyhow!("Unsupported ID type: {}", other)),
         })?;
     writer.delete_term(term);
