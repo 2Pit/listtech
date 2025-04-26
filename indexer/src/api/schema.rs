@@ -6,20 +6,20 @@ use serde::{Deserialize, Serialize};
 pub struct Schema {
     pub name: String,
     pub version: u32,
-    pub columns: Vec<ColumnType>,
+    pub columns: Vec<Column>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ColumnType {
+pub struct Column {
     pub name: String,
-    pub filed_type: FieldType,
+    pub filed_type: ColumnType,
     pub modifiers: Vec<FieldModifier>,
     pub on_missing: OnMissing,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(rename_all = "snake_case")]
-pub enum FieldType {
+pub enum ColumnType {
     // value types (zero_indexed)
     Bool,
     Ulong,

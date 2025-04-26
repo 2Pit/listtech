@@ -64,7 +64,6 @@ impl Into<(StatusCode, String)> for ServerError {
 }
 
 use crate::infra::index::IndexState;
-use crate::infra::index_writer::add_document_safely;
 use axum::response::IntoResponse;
 use serde_cbor;
 use std::sync::Arc;
@@ -75,7 +74,7 @@ pub async fn handle_add_document(
     state: Arc<IndexState>,
     req: HttpAddDocumentRequest,
 ) -> impl IntoResponse {
-    match add_document_safely(&state, req.0.document).await {
+    match state.add_document_safely(req.0.document).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(err) => {
             error!(?err, "Failed to index document");

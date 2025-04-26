@@ -1,5 +1,5 @@
 use crate::api;
-use crate::api::{FieldType, FieldValue};
+use crate::api::{ColumnType, FieldValue};
 use anyhow::Result;
 use anyhow::anyhow;
 use chrono::{DateTime as CronoDateTime, Utc};
@@ -20,13 +20,13 @@ pub struct InnerSchema {
     pub version: u32,
     pub id_column: InnerColumnType,
     pub column_by_name: HashMap<String, InnerColumnType>,
-    pub colunms: Vec<InnerColumnType>,
+    pub columns: Vec<InnerColumnType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InnerColumnType {
     pub tan_field: TanField,
-    pub field_type: FieldType,
+    pub field_type: ColumnType,
     pub name: String,
     pub is_stored: bool,
     pub is_eq: bool,
@@ -51,7 +51,7 @@ impl InnerSchema {
             let field_entry = self
                 .column_by_name
                 .get(field_name)
-                .ok_or(anyhow!("Unknown filed"))?;
+                .ok_or(anyhow!("Unknown filed: {}", field_name))?;
             let tan_field = field_entry.tan_field;
 
             if let Some(ref value) = field.value {
@@ -60,13 +60,13 @@ impl InnerSchema {
                 let field_type = &field_entry.field_type;
 
                 match (value, field_type) {
-                    (Bool(b), FieldType::Bool) => compact_doc.add_bool(tan_field, *b),
-                    (Long(i), FieldType::Long) => compact_doc.add_i64(tan_field, *i),
-                    (Ulong(u), FieldType::Ulong) => compact_doc.add_u64(tan_field, *u),
-                    (Double(f), FieldType::Double) => compact_doc.add_f64(tan_field, *f),
-                    (String(s), FieldType::String) => compact_doc.add_text(tan_field, s),
-                    (Bytes(b), FieldType::Bytes) => compact_doc.add_bytes(tan_field, b.as_slice()),
-                    (DateTime(iso_date), FieldType::DateTime) => {
+                    (Bool(b), ColumnType::Bool) => compact_doc.add_bool(tan_field, *b),
+                    (Long(i), ColumnType::Long) => compact_doc.add_i64(tan_field, *i),
+                    (Ulong(u), ColumnType::Ulong) => compact_doc.add_u64(tan_field, *u),
+                    (Double(f), ColumnType::Double) => compact_doc.add_f64(tan_field, *f),
+                    (String(s), ColumnType::String) => compact_doc.add_text(tan_field, s),
+                    (Bytes(b), ColumnType::Bytes) => compact_doc.add_bytes(tan_field, b.as_slice()),
+                    (DateTime(iso_date), ColumnType::DateTime) => {
                         let dt: CronoDateTime<Utc> =
                             iso_date.parse().expect("Invalid ISO 8601 format");
                         compact_doc.add_date(
@@ -74,7 +74,7 @@ impl InnerSchema {
                             TantivyDateTime::from_timestamp_micros(dt.timestamp_micros()),
                         )
                     }
-                    (Tree(paths), FieldType::Tree) => {
+                    (Tree(paths), ColumnType::Tree) => {
                         for path in paths.into_iter() {
                             compact_doc.add_facet(tan_field, Facet::from(path));
                         }
