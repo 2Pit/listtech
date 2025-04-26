@@ -1,5 +1,5 @@
 use crate::infra::index::IndexState;
-use crate::infra::index_writer::*;
+use crate::infra::index_writer::add_document_safely;
 use crate::infra::schema::build_schema;
 use corelib::proto::indexer::indexer_api_server::IndexerApi;
 use corelib::proto::indexer::*;

@@ -22,6 +22,7 @@ thiserror = "2.0"
 tonic = "0.13"
 prost = "0.13"
 prost-types = "0.13"
+serde_cbor.workspace = true
 
 [build-dependencies]
 prost-build = "0.13"
