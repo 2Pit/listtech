@@ -1,6 +1,7 @@
-use corelib::proto::indexer::Document;
-use corelib::proto::indexer::indexable_field::Value;
-use tantivy::DateTime;
+use corelib::api::indexer_model::document::*;
+
+use chrono::{DateTime as CronoDateTime, Utc};
+use tantivy::DateTime as TantivyDateTime;
 use tantivy::TantivyError;
 use tantivy::schema::document::TantivyDocument;
 use tantivy::schema::{Facet, Schema, Type};
@@ -16,7 +17,7 @@ pub fn map_proto_to_tantivy_doc(
         let field_entry = schema.get_field(field_name)?;
 
         if let Some(ref v) = field.value {
-            use Value::*;
+            use FieldValue::*;
 
             let field_type = schema
                 .get_field(field_name)
@@ -25,19 +26,23 @@ pub fn map_proto_to_tantivy_doc(
                 .map(|ft| ft.value_type())?;
 
             match v {
-                BoolValue(b) if field_type == Type::Bool => compact_doc.add_bool(field_entry, *b),
-                LongValue(i) if field_type == Type::I64 => compact_doc.add_i64(field_entry, *i),
-                UlongValue(u) if field_type == Type::U64 => compact_doc.add_u64(field_entry, *u),
-                DoubleValue(f) if field_type == Type::F64 => compact_doc.add_f64(field_entry, *f),
-                StringValue(s) if field_type == Type::Str => compact_doc.add_text(field_entry, s),
-                BytesValue(b) if field_type == Type::Bytes => {
+                Bool(b) if field_type == Type::Bool => compact_doc.add_bool(field_entry, *b),
+                Long(i) if field_type == Type::I64 => compact_doc.add_i64(field_entry, *i),
+                Ulong(u) if field_type == Type::U64 => compact_doc.add_u64(field_entry, *u),
+                Double(f) if field_type == Type::F64 => compact_doc.add_f64(field_entry, *f),
+                String(s) if field_type == Type::Str => compact_doc.add_text(field_entry, s),
+                Bytes(b) if field_type == Type::Bytes => {
                     compact_doc.add_bytes(field_entry, b.as_slice())
                 }
-                TimestampMsValue(t) if field_type == Type::Date => {
-                    compact_doc.add_date(field_entry, DateTime::from_timestamp_nanos(*t))
+                DateTime(iso_date) if field_type == Type::Date => {
+                    let dt: CronoDateTime<Utc> = iso_date.parse().expect("Invalid ISO 8601 format");
+                    compact_doc.add_date(
+                        field_entry,
+                        TantivyDateTime::from_timestamp_micros(dt.timestamp_micros()),
+                    )
                 }
-                FacetWrapper(f) if field_type == Type::Facet => {
-                    for facet_str in &f.facets {
+                Tree(facest) if field_type == Type::Facet => {
+                    for facet_str in facest.into_iter() {
                         compact_doc.add_facet(field_entry, Facet::from(facet_str));
                     }
                 }

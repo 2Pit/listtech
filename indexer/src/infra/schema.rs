@@ -1,33 +1,92 @@
-use tantivy::schema::*;
+use anyhow::Result;
+use anyhow::anyhow;
+use chrono::{DateTime as CronoDateTime, Utc};
+use corelib::api::indexer_model::document::*;
+use corelib::api::indexer_model::schema::FieldType;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json;
+use std::collections::HashMap;
+use std::{fs, path::Path};
+use tantivy::DateTime as TantivyDateTime;
+use tantivy::TantivyError;
+use tantivy::schema::Facet;
+use tantivy::schema::Field as TanField;
+use tantivy::schema::document::TantivyDocument;
 
-pub fn build_schema() -> Schema {
-    let mut schema_builder = Schema::builder();
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InnerSchema {
+    pub name: String,
+    pub version: u32,
+    pub id_column: InnerColumnType,
+    pub column_by_name: HashMap<String, InnerColumnType>,
+    pub colunms: Vec<InnerColumnType>,
+}
 
-    schema_builder.add_text_field("asin", STRING | STORED); // Уникальный идентификатор товара
-    schema_builder.add_text_field("title", TEXT | STORED); // Название товара
-    schema_builder.add_text_field("description", TEXT | STORED); // Описание товара (массив строк, объединяется)
-    schema_builder.add_date_field("timestamp_creation_ms", FAST | STORED); // Временная метка создания товара (в миллисекундах, Unix timestamp)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InnerColumnType {
+    pub tan_field: TanField,
+    pub field_type: FieldType,
+    pub name: String,
+    pub is_stored: bool,
+    pub is_eq: bool,
+    pub is_fast: bool,
+    pub is_tree: bool,
+    pub is_nullable: bool,
+}
 
-    schema_builder.add_text_field("feature", TEXT | STORED); // Основные характеристики (bullet points, массив строк)
-    schema_builder.add_text_field("main_cat", TEXT | STORED); // Основная категория товара (текст, может быть многословной)
-    schema_builder.add_text_field("also_buy", STRING | STORED); // Список ASIN'ов товаров, которые также покупали
-    schema_builder.add_text_field("also_view", STRING | STORED); // Список ASIN'ов товаров, которые также просматривали
+impl InnerSchema {
+    pub fn read_schema(file_path: &str) -> Result<InnerSchema> {
+        let path = Path::new(file_path);
+        let contents = fs::read_to_string(path)?; // Читаем файл как строку
+        let schema = serde_json::from_str::<InnerSchema>(&contents)?; // Парсим JSON в структуру Schema
+        Ok(schema)
+    }
 
-    schema_builder.add_text_field("image_url", STRING | STORED); // URL основного изображения
-    schema_builder.add_text_field("image_url_high_res", STRING | STORED); // URL изображения в высоком разрешении
-    schema_builder.add_text_field("tech1", STRING | STORED); // Первая таблица тех. параметров (как строка)
-    schema_builder.add_text_field("tech2", STRING | STORED); // Вторая таблица тех. параметров (как строка)
-    // schema_builder.add_text_field("similar_item", STRING | STORED); // Схожий товар (обычно один ASIN)
+    pub fn to_tantivy_doc(&self, doc: &Document) -> Result<TantivyDocument> {
+        let mut compact_doc = TantivyDocument::new();
 
-    schema_builder.add_text_field("brand_string", STRING | STORED); // Название бренда как строка (для отображения в выдаче)
-    schema_builder.add_facet_field("brand", FacetOptions::default().set_stored()); // Название бренда как фасет (для фильтрации)
+        for field in &doc.fields {
+            let field_name = &field.name;
+            let field_entry = self
+                .column_by_name
+                .get(field_name)
+                .ok_or(anyhow!("Unknown filed"))?;
+            let tan_field = field_entry.tan_field;
 
-    schema_builder.add_facet_field("category", FacetOptions::default().set_stored()); // Полный путь категории как фасет (иерархический)
+            if let Some(ref value) = field.value {
+                use FieldValue::*;
 
-    schema_builder.add_f64_field("price", FAST | STORED); // Цена товара в долларах (если распарсилась)
+                let field_type = &field_entry.field_type;
 
-    schema_builder.add_u64_field("rank_position", FAST | STORED); // Позиции в рейтингах (multi-valued): 3092, 5010 и т.п.
-    schema_builder.add_facet_field("rank_facet", FacetOptions::default().set_stored()); // Категории, в которых товар занимает позицию (соответствуют по индексу с rank_position)
+                match (value, field_type) {
+                    (Bool(b), FieldType::Bool) => compact_doc.add_bool(tan_field, *b),
+                    (Long(i), FieldType::Long) => compact_doc.add_i64(tan_field, *i),
+                    (Ulong(u), FieldType::Ulong) => compact_doc.add_u64(tan_field, *u),
+                    (Double(f), FieldType::Double) => compact_doc.add_f64(tan_field, *f),
+                    (String(s), FieldType::String) => compact_doc.add_text(tan_field, s),
+                    (Bytes(b), FieldType::Bytes) => compact_doc.add_bytes(tan_field, b.as_slice()),
+                    (DateTime(iso_date), FieldType::DateTime) => {
+                        let dt: CronoDateTime<Utc> =
+                            iso_date.parse().expect("Invalid ISO 8601 format");
+                        compact_doc.add_date(
+                            tan_field,
+                            TantivyDateTime::from_timestamp_micros(dt.timestamp_micros()),
+                        )
+                    }
+                    (Tree(paths), FieldType::Tree) => {
+                        for path in paths.into_iter() {
+                            compact_doc.add_facet(tan_field, Facet::from(path));
+                        }
+                    }
+                    _ => Err(TantivyError::InvalidArgument(format!(
+                        "Invalid data type '{}' for field '{}'",
+                        field_type, field_name
+                    )))?,
+                }
+            }
+        }
 
-    schema_builder.build()
+        Ok(compact_doc)
+    }
 }

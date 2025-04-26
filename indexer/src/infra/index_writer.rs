@@ -1,49 +1,29 @@
 use crate::api::mapping::map_proto_to_tantivy_doc;
-use crate::domain::document::extract_asin;
 use crate::infra::index::IndexState;
-use corelib::proto::indexer::Document;
+use corelib::api::indexer_model::document::*;
 
 use anyhow::{Context, Result};
 use tantivy::schema::Term;
 
-/// Индексирует один документ с возможной заменой по asin
-pub async fn index_document(index: &IndexState, doc: Document) -> Result<()> {
-    let tantivy_doc =
-        map_proto_to_tantivy_doc(&doc, &index.schema).context("invalid document structure")?;
+pub async fn add_document_safely(index_state: &IndexState, doc: Document) -> Result<()> {
+    let tantivy_doc = map_proto_to_tantivy_doc(&doc, &index_state.index.schema())
+        .context("invalid document structure")?;
 
-    let writer = index.writer.lock().await;
+    let writer = index_state.writer.lock().await;
 
-    if let Some(asin) = extract_asin(&doc) {
-        let asin_field = index
-            .schema
-            .get_field("asin")
-            .context("asin field not found in schema")?;
-
-        let term = Term::from_field_text(asin_field, asin.as_str());
-        writer.delete_term(term);
-    }
-
-    writer
-        .add_document(tantivy_doc)
-        .context("failed to add document")?;
-
-    Ok(())
-}
-
-pub async fn add_document_safely(index: &IndexState, doc: Document) -> anyhow::Result<()> {
-    let tantivy_doc =
-        map_proto_to_tantivy_doc(&doc, &index.schema).context("invalid document structure")?;
-
-    let writer = index.writer.lock().await;
-
-    if let Some(asin) = extract_asin(&doc) {
-        let asin_field = index
-            .schema
-            .get_field("asin")
-            .context("asin field not found in schema")?;
-        let term = Term::from_field_text(asin_field, asin.as_str());
-        writer.delete_term(term);
-    }
+    let id_col = &index_state.schema.id_column;
+    let term = doc
+        .fields
+        .into_iter()
+        .find(|field| field.name == id_col.name)
+        .ok_or_else(|| anyhow::anyhow!("ID not found"))
+        .and_then(|field| field.value.ok_or_else(|| anyhow::anyhow!("ID is null")))
+        .and_then(|id_value| match id_value {
+            FieldValue::String(id) => Ok(Term::from_field_text(id_col.tan_field, id.as_str())),
+            FieldValue::Long(id) => Ok(Term::from_field_i64(id_col.tan_field, id)),
+            other => Err(anyhow::anyhow!("Unsupported ID type: {}", other)),
+        })?;
+    writer.delete_term(term);
 
     loop {
         match writer.add_document(tantivy_doc.clone()) {
@@ -51,12 +31,6 @@ pub async fn add_document_safely(index: &IndexState, doc: Document) -> anyhow::R
             Err(e) => return Err(e.into()),
         }
     }
-
-    // let count = index.doc_counter.fetch_add(1, Ordering::Relaxed) + 1;
-    // if count % 1000 == 0 {
-    //     writer.commit()?;
-    //     tracing::info!(doc_count = count, "Committed after 1000 documents");
-    // }
 
     Ok(())
 }

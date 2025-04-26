@@ -23,6 +23,7 @@ tonic = "0.13"
 prost = "0.13"
 prost-types = "0.13"
 serde_cbor.workspace = true
+derive_more = { version = "2.0.1", features = ["full"] }
 
 [build-dependencies]
 prost-build = "0.13"

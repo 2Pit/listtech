@@ -24,6 +24,21 @@ pub enum FieldValue {
     DateTime(String),
     // object types
     Bytes(Vec<u8>),
-    Facet(Vec<String>),
+    Tree(Vec<String>),
     String(String),
+}
+
+impl std::fmt::Display for FieldValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FieldValue::Bool(v) => write!(f, "{}", v),
+            FieldValue::Ulong(v) => write!(f, "{}", v),
+            FieldValue::Long(v) => write!(f, "{}", v),
+            FieldValue::Double(v) => write!(f, "{}", v),
+            FieldValue::DateTime(v) => write!(f, "{}", v),
+            FieldValue::Bytes(v) => write!(f, "{:?}", v), // байты выводим через дебаг
+            FieldValue::Tree(v) => write!(f, "[{}]", v.join(", ")), // склеиваем вектор строк через запятую
+            FieldValue::String(v) => write!(f, "{}", v),
+        }
+    }
 }

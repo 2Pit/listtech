@@ -37,6 +37,8 @@ dotenvy = { workspace = true }
 tantivy = { workspace = true }
 async-trait = "0.1.88"
 futures-util = "0.3.31"
+chrono = "0.4.40"
+derive_more = { version = "2.0.1", features = ["full"] }
 
 
 [lib]
