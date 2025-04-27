@@ -13,10 +13,10 @@ pub enum SearchValue {
     Ulong(u64),
     Long(i64),
     Double(f64),
-    String(String),
+    Str(String),
     Bytes(Vec<u8>),
     DateTime(String),
-    Facet(Vec<String>),
+    Tree(Vec<String>),
 
     NullableBool(Option<bool>),
     NullableUlong(Option<u64>),

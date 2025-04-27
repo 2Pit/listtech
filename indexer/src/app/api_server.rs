@@ -1,22 +1,27 @@
 use crate::infra::index::IndexState;
 use crate::model;
+
 use anyhow::Error;
+use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::{Router, routing::post};
-use serde_cbor;
+use hyper::StatusCode;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::error;
-use tracing::info;
 
 pub async fn run_http_server(port: u16) -> Result<(), Error> {
     let listener = TcpListener::bind(("0.0.0.0", port))
         .await
         .expect("cannot bind to HTTP port");
 
+    let index_state = IndexState::init_index("./data/index").await?;
+    let state = Arc::new(index_state);
+
     let app = Router::new()
         .route("/v1/doc", post(handle_add_document))
+        .with_state(state.clone())
         .layer(TraceLayer::new_for_http());
 
     axum::serve(listener, app).await.unwrap();
@@ -25,7 +30,7 @@ pub async fn run_http_server(port: u16) -> Result<(), Error> {
 
 /// Обработчик ручки POST /v1/doc
 pub async fn handle_add_document(
-    state: Arc<IndexState>,
+    State(state): State<Arc<IndexState>>,
     req: model::AddDocumentRequest,
 ) -> impl IntoResponse {
     match state.add_document_safely(req.0.document).await {

@@ -1,5 +1,3 @@
-pub mod grpc;
-
 mod column;
 mod field;
 mod reqres;

@@ -1,6 +1,7 @@
+use crate::api;
 use crate::domain::document::map_owned_value;
 use crate::infra::index::SearchIndex;
-use corelib::proto::searcher::{SearchField, *};
+
 use std::collections::{HashMap, HashSet};
 use tantivy::query::QueryParser;
 use tantivy::{
@@ -38,50 +39,49 @@ pub fn build_search_response(
     index: &SearchIndex,
     top_docs: &[(Score, DocAddress)],
     projection: &[&str],
-) -> Result<SearchResponse, Status> {
+) -> Result<api::SearchResponse, Status> {
     let searcher = index.reader.searcher();
     let schema = index.index.schema();
+    let asin_field = schema
+        .get_field("asin")
+        .map_err(|e| Status::internal(format!("Schema missing 'asin' field: {e}")))?;
 
-    let mut hits = Vec::with_capacity(top_docs.len());
-
-    let field_set: HashSet<&str> = HashSet::from_iter(projection.iter().copied());
+    let field_set: HashSet<&str> = projection.iter().copied().collect();
+    let mut fields = Vec::new();
 
     for &(_, addr) in top_docs {
         let doc: HashMap<Field, OwnedValue> = searcher
             .doc(addr)
-            .map_err(|e| Status::internal(format!("Failed to retrieve doc: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to retrieve document: {e}")))?;
 
-        let fields = field_set
-            .iter()
-            .filter_map(|field_name| match schema.get_field(field_name) {
-                Ok(field) => Some(
-                    doc.get(&field)
-                        .ok_or_else(|| {
-                            Status::not_found(format!(
-                                "Field '{}' not found, asin: {}",
-                                field_name,
-                                if let Some(OwnedValue::Str(s)) =
-                                    doc.get(&schema.get_field("asin").unwrap())
-                                {
-                                    &s
-                                } else {
-                                    "unknown"
-                                }
-                            ))
+        for &field_name in &field_set {
+            let field = schema.get_field(field_name).map_err(|e| {
+                Status::invalid_argument(format!("Invalid field name '{}': {}", field_name, e))
+            })?;
+
+            let value = match doc.get(&field) {
+                Some(v) => v,
+                None => {
+                    let asin = doc
+                        .get(&asin_field)
+                        .and_then(|v| match v {
+                            OwnedValue::Str(s) => Some(s.clone()),
+                            _ => None,
                         })
-                        .map(|value| map_owned_value(field_name, value.clone())),
-                ),
-                Err(e) => Some(Err(Status::invalid_argument(format!(
-                    "Invalid field name '{}': {}",
-                    field_name, e
-                )))),
-            })
-            .collect::<Result<Vec<SearchField>, Status>>()?;
+                        .unwrap_or_else(|| "unknown".to_string());
 
-        hits.push(SearchHit { fields });
+                    return Err(Status::not_found(format!(
+                        "Field '{}' not found in document (asin = '{}')",
+                        field_name, asin
+                    )));
+                }
+            };
+
+            fields.push(map_owned_value(field_name, value.clone()));
+        }
     }
 
-    Ok(SearchResponse { hits })
+    Ok(api::SearchResponse { fields })
 }
 
 // pub fn build_matrix_response(

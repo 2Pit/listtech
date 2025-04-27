@@ -1,30 +1,38 @@
-use corelib::proto::searcher::{SearchField, search_field::FacetWrapper, search_field::Value};
+use crate::api;
+use crate::api::SearchValue::*;
+
 use tantivy::schema::OwnedValue;
 
-pub fn map_owned_value(field_name: &str, value: OwnedValue) -> SearchField {
+pub fn map_owned_value(field_name: &str, value: OwnedValue) -> api::SearchField {
     let value_enum = match value {
-        OwnedValue::Str(s) => Value::StringValue(s),
-        OwnedValue::PreTokStr(p) => Value::StringValue(p.text),
-        OwnedValue::U64(n) => Value::UlongValue(n),
-        OwnedValue::I64(n) => Value::LongValue(n),
-        OwnedValue::F64(n) => Value::DoubleValue(n),
-        OwnedValue::Bool(b) => Value::BoolValue(b),
-        OwnedValue::Date(dt) => Value::TimestampMsValue(dt.into_timestamp_millis()),
-        OwnedValue::Facet(f) => Value::FacetWrapper(FacetWrapper {
-            facets: vec![f.to_string()],
-        }),
-        OwnedValue::Bytes(b) => Value::BytesValue(b.clone()),
+        OwnedValue::Str(s) => Str(s),
+        OwnedValue::PreTokStr(p) => Str(p.text),
+        OwnedValue::U64(n) => Ulong(n),
+        OwnedValue::I64(n) => Long(n),
+        OwnedValue::F64(n) => Double(n),
+        OwnedValue::Bool(b) => Bool(b),
+        OwnedValue::Date(dt) => DateTime(tantivy_datetime_to_iso(dt)),
+        OwnedValue::Facet(f) => Tree(vec![f.to_string()]),
+        OwnedValue::Bytes(b) => Bytes(b.clone()),
 
-        OwnedValue::Null | OwnedValue::Array(_) | OwnedValue::Object(_) | OwnedValue::IpAddr(_) => {
-            return SearchField {
-                name: field_name.to_string(),
-                value: None,
-            };
-        }
+        // OwnedValue::Null | OwnedValue::Array(_) | OwnedValue::Object(_) | OwnedValue::IpAddr(_) =>
+        _ => NullableBool(None),
     };
 
-    SearchField {
+    api::SearchField {
         name: field_name.to_string(),
-        value: Some(value_enum),
+        value: value_enum,
     }
+}
+
+fn tantivy_datetime_to_iso(dt: tantivy::DateTime) -> String {
+    let micros = dt.into_timestamp_micros(); // Получаем i64 микросекунды
+    let secs = micros / 1_000_000;
+    let nanos = (micros % 1_000_000) * 1000; // остаток переводим в наносекунды
+
+    let chrono_dt = chrono::DateTime::from_timestamp(secs, nanos as u32)
+        .expect("Invalid timestamp")
+        .naive_utc();
+
+    chrono_dt.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string()
 }

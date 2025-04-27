@@ -1,8 +1,9 @@
-use super::searcher_model::{column::ColumnValues, field::SearchField};
+use crate::api;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
+    pub select: String,
     pub filter: String,
     pub projections: Vec<String>,
     // pub group_by: Vec<String>,
@@ -11,7 +12,7 @@ pub struct SearchRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResponse {
-    pub fields: Vec<SearchField>,
+    pub fields: Vec<api::SearchField>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -23,5 +24,5 @@ pub struct SearchMatrixResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Column {
     pub name: String,
-    pub values: ColumnValues,
+    pub values: api::ColumnValues,
 }
