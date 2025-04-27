@@ -16,14 +16,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Обработка ошибок
 anyhow = "1.0"
-thiserror = "2.0"
-
-# gRPC и Protobuf
-tonic = "0.13"
-prost = "0.13"
-prost-types = "0.13"
-serde_cbor.workspace = true
-derive_more = { version = "2.0.1", features = ["full"] }
 
 [build-dependencies]
 prost-build = "0.13"

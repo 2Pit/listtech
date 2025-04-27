@@ -1,4 +1,4 @@
-use crate::api;
+use crate::api::{Column, SearchField};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -12,17 +12,11 @@ pub struct SearchRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResponse {
-    pub fields: Vec<api::SearchField>,
+    pub fields: Vec<SearchField>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchMatrixResponse {
     pub row_count: u32,
     pub columns: Vec<Column>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Column {
-    pub name: String,
-    pub values: api::ColumnValues,
 }
