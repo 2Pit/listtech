@@ -9,7 +9,7 @@ static INDEX_STATE: OnceCell<IndexState> = OnceCell::const_new();
 async fn build_index() -> &'static IndexState {
     INDEX_STATE
         .get_or_init(|| async {
-            IndexState::init_index2("../data/testing_index")
+            IndexState::init_index("../data/testing_index")
                 .await
                 .expect("Failed to initialize index")
         })

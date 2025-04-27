@@ -16,7 +16,7 @@ pub struct IndexState {
 }
 
 impl IndexState {
-    pub async fn init_index2(index_dir: &str) -> Result<IndexState> {
+    pub async fn init_index(index_dir: &str) -> Result<IndexState> {
         let index: Index = Index::open_in_dir(Path::new(index_dir))?;
         let schema = InnerSchema::read_schema(&format!("{}/listtech_schema.json", index_dir))?;
         let writer = Self::init_writer(&index).await?;

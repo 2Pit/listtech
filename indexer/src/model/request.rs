@@ -1,4 +1,4 @@
-use crate::api::AddDocumentRequest;
+use crate::api;
 use axum::{
     body::Body,
     extract::{FromRequest, Request},
@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 const MAX_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB лимит
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HttpAddDocumentRequest(pub AddDocumentRequest);
+pub struct AddDocumentRequest(pub api::AddDocumentRequest);
 
-impl<S> FromRequest<S, Body> for HttpAddDocumentRequest
+impl<S> FromRequest<S, Body> for AddDocumentRequest
 where
     S: Send + Sync,
 {
@@ -59,26 +59,6 @@ impl Into<(StatusCode, String)> for ServerError {
             ServerError::InternalError => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal error".into())
             }
-        }
-    }
-}
-
-use crate::infra::index::IndexState;
-use axum::response::IntoResponse;
-use serde_cbor;
-use std::sync::Arc;
-use tracing::error;
-
-/// Обработчик ручки POST /v1/doc
-pub async fn handle_add_document(
-    state: Arc<IndexState>,
-    req: HttpAddDocumentRequest,
-) -> impl IntoResponse {
-    match state.add_document_safely(req.0.document).await {
-        Ok(_) => StatusCode::OK.into_response(),
-        Err(err) => {
-            error!(?err, "Failed to index document");
-            (StatusCode::BAD_REQUEST, format!("Failed to index: {err}")).into_response()
         }
     }
 }

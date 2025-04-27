@@ -16,18 +16,6 @@ impl SearchService for SearchIndex {
         let query_str = request_inner.query;
         let projection = request_inner.return_fields;
 
-        // let sql_query = parse_sql_statement(query_str.as_str())
-        //     .map_err(|e| Status::invalid_argument(format!("Invalid SQL: {}", e)))?;
-
-        // let query = extract_filter_query(&sql_query, &self.index.schema())
-        //     .map_err(|e| Status::invalid_argument(format!("Invalid filter query: {}", e)))?;
-
-        // let projection = extract_projection(&sql_query, &self.index.schema())
-        //     .map_err(|e| Status::invalid_argument(format!("Invalid projection fields: {}", e)))?;
-
-        // let top_docs = execute_search(self, query)
-        //     .map_err(|e| Status::internal(format!("Search execution failed: {}", e)))?;
-
         let top_docs = execute_search(self, query_str.as_str())
             .map_err(|e| Status::internal(format!("Search execution failed: {}", e)))?;
 
