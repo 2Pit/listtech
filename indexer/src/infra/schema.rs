@@ -1,5 +1,6 @@
 use crate::api;
-use crate::api::{ColumnType, FieldValue};
+use crate::api::FieldValue;
+
 use anyhow::Result;
 use anyhow::anyhow;
 use chrono::{DateTime as CronoDateTime, Utc};
@@ -10,37 +11,105 @@ use std::collections::HashMap;
 use std::{fs, path::Path};
 use tantivy::DateTime as TantivyDateTime;
 use tantivy::TantivyError;
-use tantivy::schema::Facet;
-use tantivy::schema::Field as TanField;
 use tantivy::schema::document::TantivyDocument;
+use tantivy::schema::{Facet, Schema as TantivySchema};
+use tantivy::schema::{Field, FieldType as TantivyFieldType};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InnerSchema {
+use super::delta_schema::DeltaSchema;
+
+use tantivy::schema::Field as Idx;
+
+#[derive(Debug, Clone)]
+pub struct MetaSchema {
     pub name: String,
-    pub version: u32,
-    pub id_column: InnerColumnType,
-    pub column_by_name: HashMap<String, InnerColumnType>,
-    pub columns: Vec<InnerColumnType>,
+    pub id_column: MetaColumn,
+    idx_by_name: HashMap<String, Idx>,
+    columns: Vec<MetaColumn>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InnerColumnType {
-    pub tan_field: TanField,
-    pub field_type: ColumnType,
+#[derive(Debug, Clone)]
+pub struct MetaColumn {
+    pub idx: Idx, // Tantivy Field
     pub name: String,
-    pub is_stored: bool,
-    pub is_eq: bool,
-    pub is_fast: bool,
-    pub is_tree: bool,
+    pub tantivy_type: TantivyFieldType, // Tantivy FieldType
+    pub column_type: api::ColumnType,   // Наш тип
+    pub is_id: bool,
     pub is_nullable: bool,
+    pub is_eq: bool,
+    pub is_sort_ragne: bool,
 }
 
-impl InnerSchema {
-    pub fn read_schema(file_path: &str) -> Result<InnerSchema> {
-        let path = Path::new(file_path);
-        let contents = fs::read_to_string(path)?; // Читаем файл как строку
-        let schema = serde_json::from_str::<InnerSchema>(&contents)?; // Парсим JSON в структуру Schema
-        Ok(schema)
+impl MetaSchema {
+    pub fn get_idx(&self, name: &str) -> Result<Idx> {
+        self.idx_by_name
+            .get(name)
+            .map(|idx| idx.clone())
+            .ok_or(anyhow!("Unknown column name: {}", name))
+    }
+
+    pub fn get_column_type(&self, name: &str) -> Result<api::ColumnType> {
+        self.get_idx(name)
+            .map(|idx| self.columns[idx.field_id() as usize].column_type.clone())
+    }
+
+    pub fn from_tantivy_and_delta(
+        tantivy_schema: &TantivySchema,
+        delta: DeltaSchema,
+    ) -> Result<Self> {
+        let mut columns = Vec::new();
+        let mut idx_by_name = HashMap::new();
+        let mut id_column = None;
+
+        for delta_col in &delta.columns {
+            let idx = tantivy_schema
+                .get_field(&delta_col.name)
+                .map_err(|_| anyhow!("Field '{}' not found in Tantivy schema", delta_col.name))?;
+
+            let field_entry = tantivy_schema.get_field_entry(idx);
+            let tantivy_type = field_entry.field_type().clone();
+
+            let is_eq = matches!(
+                tantivy_type,
+                TantivyFieldType::Str(_) | TantivyFieldType::Facet(_)
+            );
+            let is_sort_ragne = matches!(
+                tantivy_type,
+                TantivyFieldType::U64(_)
+                    | TantivyFieldType::I64(_)
+                    | TantivyFieldType::F64(_)
+                    | TantivyFieldType::Date(_)
+            );
+
+            let meta_column = MetaColumn {
+                idx,
+                name: delta_col.name.clone(),
+                tantivy_type,
+                column_type: delta_col.column_type.clone(),
+                is_id: delta_col.is_id,
+                is_nullable: delta_col.is_nullable,
+                is_eq,
+                is_sort_ragne,
+            };
+
+            if delta_col.is_id {
+                if id_column.is_some() {
+                    return Err(anyhow!("Multiple ID columns defined"));
+                }
+                id_column = Some(meta_column.clone());
+            }
+
+            idx_by_name.insert(delta_col.name.clone(), idx);
+            columns.push(meta_column);
+        }
+
+        let id_column = id_column.ok_or_else(|| anyhow!("No ID column defined"))?;
+
+        Ok(Self {
+            name: delta.name.clone(),
+            id_column,
+            columns,
+            idx_by_name,
+        })
     }
 
     pub fn to_tantivy_doc(&self, doc: &api::Document) -> Result<TantivyDocument> {
@@ -48,41 +117,44 @@ impl InnerSchema {
 
         for field in &doc.fields {
             let field_name = &field.name;
-            let field_entry = self
-                .column_by_name
-                .get(field_name)
-                .ok_or(anyhow!("Unknown filed: {}", field_name))?;
-            let tan_field = field_entry.tan_field;
+            let idx = self.get_idx(field_name)?;
 
             if let Some(ref value) = field.value {
-                use FieldValue::*;
+                use api::FieldValue::*;
 
-                let field_type = &field_entry.field_type;
+                let field_type = self.get_column_type(field_name)?;
 
                 match (value, field_type) {
-                    (Bool(b), ColumnType::Bool) => compact_doc.add_bool(tan_field, *b),
-                    (Long(i), ColumnType::Long) => compact_doc.add_i64(tan_field, *i),
-                    (Ulong(u), ColumnType::Ulong) => compact_doc.add_u64(tan_field, *u),
-                    (Double(f), ColumnType::Double) => compact_doc.add_f64(tan_field, *f),
-                    (String(s), ColumnType::String) => compact_doc.add_text(tan_field, s),
-                    (Bytes(b), ColumnType::Bytes) => compact_doc.add_bytes(tan_field, b.as_slice()),
-                    (DateTime(iso_date), ColumnType::DateTime) => {
-                        let dt: CronoDateTime<Utc> =
-                            iso_date.parse().expect("Invalid ISO 8601 format");
+                    (Bool(b), api::ColumnType::Bool) => compact_doc.add_bool(idx, *b),
+                    (Long(i), api::ColumnType::Long) => compact_doc.add_i64(idx, *i),
+                    (Ulong(u), api::ColumnType::Ulong) => compact_doc.add_u64(idx, *u),
+                    (Double(f), api::ColumnType::Double) => compact_doc.add_f64(idx, *f),
+                    (String(s), api::ColumnType::String) => compact_doc.add_text(idx, s),
+                    (Bytes(b), api::ColumnType::Bytes) => compact_doc.add_bytes(idx, b.as_slice()),
+                    (DateTime(iso_date), api::ColumnType::DateTime) => {
+                        let dt: chrono::DateTime<chrono::Utc> = iso_date.parse().map_err(|_| {
+                            TantivyError::InvalidArgument(format!(
+                                "Invalid ISO8601 date: {}",
+                                iso_date
+                            ))
+                        })?;
                         compact_doc.add_date(
-                            tan_field,
-                            TantivyDateTime::from_timestamp_micros(dt.timestamp_micros()),
+                            idx,
+                            tantivy::DateTime::from_timestamp_micros(dt.timestamp_micros()),
                         )
                     }
-                    (Tree(paths), ColumnType::Tree) => {
-                        for path in paths.into_iter() {
-                            compact_doc.add_facet(tan_field, Facet::from(path));
+                    (Tree(paths), api::ColumnType::Tree) => {
+                        for path in paths {
+                            compact_doc.add_facet(idx, tantivy::schema::Facet::from(path));
                         }
                     }
-                    _ => Err(TantivyError::InvalidArgument(format!(
-                        "Invalid data type '{}' for field '{}'",
-                        field_type, field_name
-                    )))?,
+                    _ => {
+                        return Err(TantivyError::InvalidArgument(format!(
+                            "Invalid data type '{:?}' for field '{}'",
+                            value, field_name
+                        ))
+                        .into());
+                    }
                 }
             }
         }

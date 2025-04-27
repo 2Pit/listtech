@@ -37,7 +37,7 @@ pub enum ColumnType {
 #[serde(rename_all = "snake_case")]
 pub enum FieldModifier {
     ID,
-    Stored,
+    // Stored,
     Equals,
     FastSortable,
     FullText,

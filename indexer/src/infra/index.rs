@@ -1,4 +1,5 @@
-use super::schema::InnerSchema;
+use super::delta_schema::DeltaSchema;
+use super::schema::MetaSchema;
 use crate::api;
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -11,19 +12,21 @@ use tokio::sync::Mutex;
 #[derive(Clone)]
 pub struct IndexState {
     pub index: Index,
-    pub schema: InnerSchema,
+    pub schema: MetaSchema,
     pub writer: Arc<Mutex<IndexWriter>>,
 }
 
 impl IndexState {
     pub async fn init_index(index_dir: &str) -> Result<IndexState> {
         let index: Index = Index::open_in_dir(Path::new(index_dir))?;
-        let schema = InnerSchema::read_schema(&format!("{}/listtech_schema.json", index_dir))?;
+        let delta_schema =
+            DeltaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
+        let meta_schema = MetaSchema::from_tantivy_and_delta(&index.schema(), delta_schema)?;
         let writer = Self::init_writer(&index).await?;
 
         Ok(IndexState {
             index,
-            schema,
+            schema: meta_schema,
             writer,
         })
     }
@@ -59,18 +62,21 @@ impl IndexState {
 
         let writer = self.writer.lock().await;
 
-        let id_col = &self.schema.id_column;
+        let id_col_name = self.schema.id_column.name.clone();
         let term = doc
             .fields
             .into_iter()
-            .find(|field| field.name == id_col.name)
+            .find(|field| field.name == id_col_name)
             .ok_or_else(|| anyhow::anyhow!("ID not found"))
             .and_then(|field| field.value.ok_or_else(|| anyhow::anyhow!("ID is null")))
             .and_then(|id_value| match id_value {
-                api::FieldValue::String(id) => {
-                    Ok(Term::from_field_text(id_col.tan_field, id.as_str()))
+                api::FieldValue::String(id) => Ok(Term::from_field_text(
+                    self.schema.id_column.idx,
+                    id.as_str(),
+                )),
+                api::FieldValue::Long(id) => {
+                    Ok(Term::from_field_i64(self.schema.id_column.idx, id))
                 }
-                api::FieldValue::Long(id) => Ok(Term::from_field_i64(id_col.tan_field, id)),
                 other => Err(anyhow::anyhow!("Unsupported ID type: {}", other)),
             })?;
         writer.delete_term(term);
