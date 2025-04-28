@@ -31,7 +31,7 @@ pub async fn run_http_server(port: u16) -> Result<(), Error> {
 /// Обработчик ручки POST /v1/doc
 pub async fn handle_add_document(
     State(state): State<Arc<IndexState>>,
-    req: model::AddDocumentRequest,
+    req: model::req_mapper::AddDocumentRequest,
 ) -> impl IntoResponse {
     match state.add_document_safely(req.0.document).await {
         Ok(_) => StatusCode::OK.into_response(),

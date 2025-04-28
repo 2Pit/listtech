@@ -7,13 +7,13 @@ pub struct AddDocumentRequest {
     pub document: Document,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddDocumentResponse;
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct AddDocumentResponse;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddSchemaRequest {
     pub schema: Schema,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddSchemaResponse;
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct AddSchemaResponse;

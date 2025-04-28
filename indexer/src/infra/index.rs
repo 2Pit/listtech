@@ -1,7 +1,9 @@
-use super::delta_schema::DeltaSchema;
-use super::schema::MetaSchema;
 use crate::api;
+use crate::model::doc_mapper;
+
 use anyhow::{Context, Result};
+use corelib::model::delta_schema::DeltaSchema;
+use corelib::model::meta_schema::MetaSchema;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -55,10 +57,8 @@ impl IndexState {
     }
 
     pub async fn add_document_safely(&self, doc: api::Document) -> Result<()> {
-        let tantivy_doc = self
-            .schema
-            .to_tantivy_doc(&doc)
-            .context("invalid document structure")?;
+        let tantivy_doc =
+            doc_mapper::to_tantivy_doc(&self.schema, &doc).context("invalid document structure")?;
 
         let writer = self.writer.lock().await;
 

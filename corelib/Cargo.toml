@@ -9,6 +9,8 @@ include_dir = "0.7"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 mime_guess = "2.0"
+tantivy = { workspace = true }
+derive_more = { version = "2.0.1", features = ["full"] }
 
 # Логирование и трассировка
 tracing = "0.1"

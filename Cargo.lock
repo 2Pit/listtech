@@ -444,11 +444,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "derive_more",
  "include_dir",
  "mime_guess",
  "prost-build",
  "serde",
  "serde_json",
+ "tantivy",
  "tokio",
  "tonic-build",
  "tracing",

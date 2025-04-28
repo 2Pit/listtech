@@ -1,4 +1,4 @@
-use derive_more::Display;
+use crate::api::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -12,43 +12,7 @@ pub struct Schema {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Column {
     pub name: String,
-    pub filed_type: ColumnType,
-    pub modifiers: Vec<FieldModifier>,
+    pub filed_type: MetaColumnType,
+    pub modifiers: Vec<MetaColumnModifier>,
     pub on_missing: OnMissing,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
-#[serde(rename_all = "snake_case")]
-pub enum ColumnType {
-    // value types (zero_indexed)
-    Bool,
-    Ulong,
-    Long,
-    Double,
-    DateTime, // 0 => 0 epoch
-
-    // object types
-    String, // 0 => ""
-    Bytes,  // 0 => []
-    Tree,   // 0 => ["/"]
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum FieldModifier {
-    ID,
-    // Stored,
-    Equals,
-    FastSortable,
-    FullText,
-    Nullable,
-    // Groupable,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum OnMissing {
-    Error,
-    Zero,
-    Null,
 }

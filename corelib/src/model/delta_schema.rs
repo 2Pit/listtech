@@ -1,4 +1,4 @@
-use crate::api;
+use crate::model::meta_schema::MetaColumnType;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -8,14 +8,13 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeltaSchema {
     pub name: String,
-    pub version: u32,
     pub columns: Vec<DeltaColumn>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeltaColumn {
     pub name: String,
-    pub column_type: api::ColumnType,
+    pub column_type: MetaColumnType,
     pub is_id: bool,
     pub is_nullable: bool,
 }

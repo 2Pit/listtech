@@ -1,7 +1,8 @@
 mod document;
-mod reqres;
+mod requests;
 mod schema;
 
+pub use corelib::model::meta_schema::{MetaColumnModifier, MetaColumnType, OnMissing};
 pub use document::*;
-pub use reqres::*;
+pub use requests::*;
 pub use schema::*;
