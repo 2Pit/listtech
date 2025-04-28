@@ -4,6 +4,7 @@ use derive_more::Display;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use tantivy::schema::IndexRecordOption;
 use tantivy::schema::{FieldType as TantivyFieldType, Schema as TantivySchema};
 
 use super::delta_schema::DeltaSchema;
@@ -28,6 +29,7 @@ pub struct MetaColumn {
     pub is_nullable: bool,
     pub is_eq: bool,
     pub is_sort_range: bool,
+    pub is_full_text: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
@@ -79,6 +81,15 @@ impl MetaSchema {
             .map(|idx| self.columns[idx.field_id() as usize].column_type.clone())
     }
 
+    // todo: cache
+    pub fn get_full_text_col_idx(&self) -> Vec<Idx> {
+        self.columns
+            .iter()
+            .filter(|col| col.is_full_text)
+            .map(|mc| mc.idx)
+            .collect()
+    }
+
     pub fn from_tantivy_and_delta(
         tantivy_schema: &TantivySchema,
         delta: DeltaSchema,
@@ -106,6 +117,14 @@ impl MetaSchema {
                 TantivyFieldType::IpAddr(opt) => (opt.is_indexed(), opt.is_fast()),
             };
 
+            let is_full_text = match field_entry.field_type() {
+                TantivyFieldType::Str(opt) => opt
+                    .get_indexing_options()
+                    .filter(|i| i.index_option() == IndexRecordOption::WithFreqsAndPositions)
+                    .is_some(),
+                _ => false,
+            };
+
             let meta_column = MetaColumn {
                 idx,
                 name: delta_col.name.clone(),
@@ -115,6 +134,7 @@ impl MetaSchema {
                 is_nullable: delta_col.is_nullable,
                 is_eq,
                 is_sort_range,
+                is_full_text,
             };
 
             if delta_col.is_id {

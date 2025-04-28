@@ -1813,6 +1813,7 @@ dependencies = [
  "prost",
  "prost-build",
  "serde",
+ "serde_cbor",
  "serde_json",
  "tantivy",
  "tempfile",

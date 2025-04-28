@@ -3,11 +3,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
-    pub select: String,
+    pub select: Vec<String>,
     pub filter: String,
-    pub projections: Vec<String>,
-    // pub group_by: Vec<String>,
-    // pub sort_by: Vec<(String, bool)>,
+
+    #[serde(default)]
+    pub offset: usize,
+
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+}
+
+const fn default_limit() -> usize {
+    10
 }
 
 #[derive(Debug, Serialize, Deserialize)]

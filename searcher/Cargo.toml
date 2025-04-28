@@ -19,7 +19,9 @@ prost = { workspace = true }
 
 # Сериализация
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json.workspace = true
+serde_cbor.workspace = true
+
 
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -46,6 +48,6 @@ tonic-build = "0.13"
 tokio = { version = "1", features = ["full"] }
 
 
-[[bench]]
-name = "ram_vs_mmap"
-harness = false
+# [[bench]]
+# name = "ram_vs_mmap"
+# harness = false

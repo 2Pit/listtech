@@ -1,7 +1,7 @@
 use crate::infra::index::IndexState;
 use crate::model;
 
-use anyhow::Error;
+use anyhow::Result;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::{Router, routing::post};
@@ -9,23 +9,40 @@ use hyper::StatusCode;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
-use tracing::error;
+use tracing::{error, info};
 
-pub async fn run_http_server(port: u16) -> Result<(), Error> {
-    let listener = TcpListener::bind(("0.0.0.0", port))
-        .await
-        .expect("cannot bind to HTTP port");
+/// Запуск HTTP API сервера
+pub async fn run_http_server(port: u16) -> Result<()> {
+    let addr = format!("0.0.0.0:{port}");
 
-    let index_state = IndexState::init_index("./data/index").await?;
-    let state = Arc::new(index_state);
+    // Читаем индекс
+    info!("Opening search index at './data/index'");
+    let index_state = match IndexState::init_index("./data/index").await {
+        Ok(index_state) => Arc::new(index_state),
+        Err(e) => {
+            error!(error = %e, "Failed to initialize index");
+            return Err(e);
+        }
+    };
+
+    // Биндим сокет
+    info!("Binding to {addr}");
+    let listener = TcpListener::bind(&addr).await.map_err(|e| {
+        error!(error = %e, "Failed to bind TCP socket");
+        e
+    })?;
+
+    info!("Starting HTTP server on {addr}");
 
     let app = Router::new()
         .route("/v1/doc", post(handle_add_document))
-        .with_state(state.clone())
+        .with_state(index_state)
         .layer(TraceLayer::new_for_http());
 
-    axum::serve(listener, app).await.unwrap();
-    Ok(())
+    axum::serve(listener, app).await.map_err(|e| {
+        error!(error = %e, "HTTP server failed");
+        e.into()
+    })
 }
 
 /// Обработчик ручки POST /v1/doc

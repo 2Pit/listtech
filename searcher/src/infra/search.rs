@@ -13,23 +13,22 @@ use tonic::Status;
 
 pub fn execute_search(
     index: &SearchIndex,
-    query_str: &str,
+    req: &api::SearchRequest,
 ) -> Result<Vec<(Score, DocAddress)>, Status> {
     let searcher = index.reader.searcher();
-    let schema = index.index.schema();
+    // let schema = index.index.schema();
 
-    let default_fields = ["title", "description"]
-        .iter()
-        .filter_map(|&name| schema.get_field(name).ok())
-        .collect::<Vec<_>>();
-
+    let default_fields = index.schema.get_full_text_col_idx();
     let parser = QueryParser::for_index(&index.index, default_fields);
     let query = parser
-        .parse_query(query_str)
+        .parse_query(&req.filter)
         .map_err(|e| Status::invalid_argument(format!("Invalid query: {e}")))?;
 
     let top_docs = searcher
-        .search(&query, &TopDocs::with_limit(10))
+        .search(
+            &query,
+            &TopDocs::with_limit(req.limit).and_offset(req.offset),
+        )
         .map_err(|e| Status::internal(format!("Search failed: {e}")))?;
 
     Ok(top_docs)
@@ -38,7 +37,7 @@ pub fn execute_search(
 pub fn build_search_response(
     index: &SearchIndex,
     top_docs: &[(Score, DocAddress)],
-    projection: &[&str],
+    projection: &Vec<String>,
 ) -> Result<api::SearchResponse, Status> {
     let searcher = index.reader.searcher();
     let schema = index.index.schema();
@@ -46,7 +45,7 @@ pub fn build_search_response(
         .get_field("asin")
         .map_err(|e| Status::internal(format!("Schema missing 'asin' field: {e}")))?;
 
-    let field_set: HashSet<&str> = projection.iter().copied().collect();
+    let field_set: HashSet<&String> = HashSet::from_iter(projection.iter());
     let mut fields = Vec::new();
 
     for &(_, addr) in top_docs {
