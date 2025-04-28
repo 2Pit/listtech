@@ -1,7 +1,10 @@
-use crate::api;
+use crate::api::SearchValue::*;
+use crate::api::{self, SearchField};
 use crate::domain::document::map_owned_value;
 use crate::infra::index::SearchIndex;
 
+use anyhow::{Result, anyhow};
+use corelib::model::meta_schema::MetaColumnType;
 use std::collections::{HashMap, HashSet};
 use tantivy::query::QueryParser;
 use tantivy::{
@@ -39,14 +42,18 @@ pub fn build_search_response(
     index: &SearchIndex,
     top_docs: &[(Score, DocAddress)],
     projection: &Vec<String>,
-) -> Result<api::SearchResponse, Status> {
+) -> Result<api::SearchResponse> {
     let searcher = index.reader.searcher();
     let schema = index.index.schema();
-    let asin_field = schema
-        .get_field("asin")
-        .map_err(|e| Status::internal(format!("Schema missing 'asin' field: {e}")))?;
 
-    let field_set: HashSet<&String> = HashSet::from_iter(projection.iter());
+    let mut field_set = HashSet::new();
+    for field in projection {
+        if field == "*" {
+            field_set.extend(index.schema.idx_by_name.keys());
+        } else {
+            field_set.insert(field);
+        }
+    }
     let mut fields = Vec::new();
 
     for &(_, addr) in top_docs {
@@ -59,25 +66,33 @@ pub fn build_search_response(
                 Status::invalid_argument(format!("Invalid field name '{}': {}", field_name, e))
             })?;
 
-            let value = match doc.get(&field) {
-                Some(v) => v,
-                None => {
-                    let asin = doc
-                        .get(&asin_field)
-                        .and_then(|v| match v {
-                            OwnedValue::Str(s) => Some(s.clone()),
-                            _ => None,
+            let value = doc
+                .get(&field)
+                .map(|v| map_owned_value(field_name, v.clone()))
+                .or_else(|| {
+                    let col_type = index.schema.get_column(field_name).unwrap();
+                    if col_type.is_nullable {
+                        Some(match col_type.column_type {
+                            MetaColumnType::Bool => NullableBool(None),
+                            MetaColumnType::Ulong => NullableUlong(None),
+                            MetaColumnType::Long => NullableLong(None),
+                            MetaColumnType::Double => NullableDouble(None),
+                            MetaColumnType::DateTime => NullableDateTime(None),
+                            MetaColumnType::String => NullableStr(None),
+                            MetaColumnType::Bytes => NullableBytes(None),
+                            MetaColumnType::Tree => NullableTree(None),
                         })
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .map(|sv| SearchField {
+                            name: field_name.to_string(),
+                            value: sv,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .ok_or(anyhow!("Unexpected null for {}", field_name))?;
 
-                    return Err(Status::not_found(format!(
-                        "Field '{}' not found in document (asin = '{}')",
-                        field_name, asin
-                    )));
-                }
-            };
-
-            fields.push(map_owned_value(field_name, value.clone()));
+            fields.push(value);
         }
     }
 

@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use tantivy::schema::IndexRecordOption;
 use tantivy::schema::{FieldType as TantivyFieldType, Schema as TantivySchema};
 
+use super::delta_schema::DeltaColumn;
 use super::delta_schema::DeltaSchema;
 
 use tantivy::schema::Field as Idx;
@@ -15,7 +16,7 @@ use tantivy::schema::Field as Idx;
 pub struct MetaSchema {
     pub name: String,
     pub id_column: MetaColumn,
-    idx_by_name: HashMap<String, Idx>,
+    pub idx_by_name: HashMap<String, Idx>,
     pub columns: Vec<MetaColumn>,
 }
 
@@ -90,6 +91,11 @@ impl MetaSchema {
             .collect()
     }
 
+    pub fn get_column(&self, name: &str) -> Result<&MetaColumn> {
+        self.get_idx(name)
+            .map(|idx| &self.columns[idx.field_id() as usize])
+    }
+
     pub fn from_tantivy_and_delta(
         tantivy_schema: &TantivySchema,
         delta: DeltaSchema,
@@ -98,23 +104,48 @@ impl MetaSchema {
         let mut idx_by_name = HashMap::new();
         let mut id_column = None;
 
-        for delta_col in &delta.columns {
-            let idx = tantivy_schema
-                .get_field(&delta_col.name)
-                .map_err(|_| anyhow!("Field '{}' not found in Tantivy schema", delta_col.name))?;
+        let col_map = delta
+            .columns
+            .iter()
+            .map(|dc| (dc.name.as_str(), dc))
+            .collect::<HashMap<_, _>>();
 
-            let field_entry = tantivy_schema.get_field_entry(idx);
-            let (is_eq, is_sort_range) = match field_entry.field_type() {
-                TantivyFieldType::Str(opt) => (opt.get_indexing_options().is_some(), opt.is_fast()),
-                TantivyFieldType::U64(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::I64(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::F64(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::Bool(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::Date(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::Facet(_) => (true, true),
-                TantivyFieldType::Bytes(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::JsonObject(opt) => (opt.is_indexed(), opt.is_fast()),
-                TantivyFieldType::IpAddr(opt) => (opt.is_indexed(), opt.is_fast()),
+        for (idx, field_entry) in tantivy_schema.fields() {
+            let field_name = field_entry.name();
+
+            let delta_col_opt = col_map.get(field_name);
+
+            let (is_eq, is_sort_range, meta_col_type) = match field_entry.field_type() {
+                TantivyFieldType::Str(opt) => (
+                    opt.get_indexing_options().is_some(),
+                    opt.is_fast(),
+                    MetaColumnType::Bool,
+                ),
+                TantivyFieldType::U64(opt) => {
+                    (opt.is_indexed(), opt.is_fast(), MetaColumnType::Ulong)
+                }
+                TantivyFieldType::I64(opt) => {
+                    (opt.is_indexed(), opt.is_fast(), MetaColumnType::Long)
+                }
+                TantivyFieldType::F64(opt) => {
+                    (opt.is_indexed(), opt.is_fast(), MetaColumnType::Double)
+                }
+                TantivyFieldType::Bool(opt) => {
+                    (opt.is_indexed(), opt.is_fast(), MetaColumnType::Bool)
+                }
+                TantivyFieldType::Date(opt) => {
+                    (opt.is_indexed(), opt.is_fast(), MetaColumnType::DateTime)
+                }
+                TantivyFieldType::Facet(_) => (true, true, MetaColumnType::Tree),
+                TantivyFieldType::Bytes(opt) => {
+                    (opt.is_indexed(), opt.is_fast(), MetaColumnType::Bytes)
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported field type" // field_entry.field_type()
+                    ));
+                } // TantivyFieldType::JsonObject(opt) => (opt.is_indexed(), opt.is_fast()),
+                  // TantivyFieldType::IpAddr(opt) => (opt.is_indexed(), opt.is_fast()),
             };
 
             let is_full_text = match field_entry.field_type() {
@@ -125,9 +156,21 @@ impl MetaSchema {
                 _ => false,
             };
 
+            // Если в дельте нет — ставим дефолтные значения
+            let delta_col = if let Some(delta_col) = delta_col_opt {
+                (**delta_col).clone()
+            } else {
+                DeltaColumn {
+                    name: field_name.to_string(),
+                    column_type: meta_col_type,
+                    is_id: false,
+                    is_nullable: false,
+                }
+            };
+
             let meta_column = MetaColumn {
                 idx,
-                name: delta_col.name.clone(),
+                name: field_name.to_string(),
                 tantivy_type: field_entry.field_type().clone(),
                 column_type: delta_col.column_type.clone(),
                 is_id: delta_col.is_id,
@@ -144,14 +187,14 @@ impl MetaSchema {
                 id_column = Some(meta_column.clone());
             }
 
-            idx_by_name.insert(delta_col.name.clone(), idx);
+            idx_by_name.insert(field_name.to_string(), idx);
             columns.push(meta_column);
         }
 
         let id_column = id_column.ok_or_else(|| anyhow!("No ID column defined"))?;
 
         Ok(Self {
-            name: delta.name.clone(),
+            name: delta.name,
             id_column,
             columns,
             idx_by_name,

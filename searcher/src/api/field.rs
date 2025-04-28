@@ -26,5 +26,5 @@ pub enum SearchValue {
     NullableStr(Option<String>),
     NullableBytes(Option<Vec<u8>>),
     NullableDateTime(Option<String>),
-    NullableFacet(Option<Vec<String>>),
+    NullableTree(Option<Vec<String>>),
 }
