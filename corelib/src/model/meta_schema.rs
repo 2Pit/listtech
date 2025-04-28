@@ -16,7 +16,7 @@ pub struct MetaSchema {
     pub name: String,
     pub id_column: MetaColumn,
     idx_by_name: HashMap<String, Idx>,
-    columns: Vec<MetaColumn>,
+    pub columns: Vec<MetaColumn>,
 }
 
 #[derive(Debug, Clone)]

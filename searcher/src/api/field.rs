@@ -7,7 +7,8 @@ pub struct SearchField {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value")]
+#[serde(rename_all = "snake_case")]
+// #[serde(tag = "type", content = "value")]
 pub enum SearchValue {
     Bool(bool),
     Ulong(u64),
@@ -22,7 +23,7 @@ pub enum SearchValue {
     NullableUlong(Option<u64>),
     NullableLong(Option<i64>),
     NullableDouble(Option<f64>),
-    NullableString(Option<String>),
+    NullableStr(Option<String>),
     NullableBytes(Option<Vec<u8>>),
     NullableDateTime(Option<String>),
     NullableFacet(Option<Vec<String>>),

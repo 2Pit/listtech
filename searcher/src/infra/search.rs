@@ -18,6 +18,7 @@ pub fn execute_search(
     let searcher = index.reader.searcher();
     // let schema = index.index.schema();
 
+    // let default_fields = index.schema.columns.iter().map(|c| c.idx).collect();
     let default_fields = index.schema.get_full_text_col_idx();
     let parser = QueryParser::for_index(&index.index, default_fields);
     let query = parser

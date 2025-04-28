@@ -22,12 +22,9 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    let http_task = tokio::spawn(api_server::run_http_server(http_port, index_dir));
-    let swagger_task = tokio::spawn(swagger_server::run_swagger_server(swagger_port));
+    let http_task = api_server::run_http_server(http_port, index_dir);
+    let swagger_task = swagger_server::run_swagger_server(swagger_port);
 
-    let (http_res, swagger_res) = tokio::try_join!(http_task, swagger_task)?;
-    http_res?;
-    swagger_res?;
-
+    tokio::try_join!(http_task, swagger_task)?;
     Ok(())
 }
