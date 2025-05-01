@@ -1,5 +1,6 @@
 use crate::api;
 use crate::api::SearchValue::*;
+use anyhow::{Ok, Result, anyhow};
 
 use tantivy::schema::OwnedValue;
 
@@ -23,6 +24,26 @@ pub fn map_owned_value(field_name: &str, value: OwnedValue) -> api::SearchField 
         name: field_name.to_string(),
         value: value_enum,
     }
+}
+
+pub fn owned_val_as_f64(value: &OwnedValue) -> Result<f64> {
+    let value_enum = match value {
+        OwnedValue::U64(n) => *n as f64,
+        OwnedValue::I64(n) => *n as f64,
+        OwnedValue::F64(n) => *n as f64,
+        OwnedValue::Bool(b) => {
+            if *b {
+                1.0
+            } else {
+                0.0
+            }
+        }
+        OwnedValue::Date(dt) => dt.into_timestamp_millis() as f64,
+
+        t => return Err(anyhow!("Cannot convert type to double {:?}", t)),
+    };
+
+    Ok(value_enum)
 }
 
 fn tantivy_datetime_to_iso(dt: tantivy::DateTime) -> String {

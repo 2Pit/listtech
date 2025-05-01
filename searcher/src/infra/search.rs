@@ -1,6 +1,6 @@
 use crate::api::SearchValue::*;
 use crate::api::{self, SearchField};
-use crate::domain::document::map_owned_value;
+use crate::domain::document::{map_owned_value, owned_val_as_f64};
 use crate::infra::index::SearchIndex;
 
 use anyhow::{Result, anyhow};
@@ -13,6 +13,10 @@ use tantivy::{
     schema::{Field, OwnedValue},
 };
 use tonic::Status;
+
+use super::online::evaluation;
+use super::online::parsing::Expr;
+use super::online::program::{OpCode, Program};
 
 pub fn execute_search(
     index: &SearchIndex,
@@ -41,13 +45,13 @@ pub fn execute_search(
 pub fn build_search_response(
     index: &SearchIndex,
     top_docs: &[(Score, DocAddress)],
-    projection: &Vec<String>,
+    req: &api::SearchRequest,
 ) -> Result<api::SearchResponse> {
     let searcher = index.reader.searcher();
-    let schema = index.index.schema();
+    let schema = &index.schema;
 
     let mut field_set = HashSet::new();
-    for field in projection {
+    for field in &req.select {
         if field == "*" {
             field_set.extend(index.schema.idx_by_name.keys());
         } else {
@@ -62,9 +66,10 @@ pub fn build_search_response(
             .map_err(|e| Status::internal(format!("Failed to retrieve document: {e}")))?;
 
         for &field_name in &field_set {
-            let field = schema.get_field(field_name).map_err(|e| {
-                Status::invalid_argument(format!("Invalid field name '{}': {}", field_name, e))
-            })?;
+            let field = schema.get_idx(field_name)?;
+            //.map_err(|e| {
+            // Status::invalid_argument(format!("Invalid field name '{}': {}", field_name, e))
+            // })?;
 
             let value = doc
                 .get(&field)
@@ -93,6 +98,44 @@ pub fn build_search_response(
                 .ok_or(anyhow!("Unexpected null for {}", field_name))?;
 
             fields.push(value);
+        }
+
+        for func in &req.functions {
+            let expr = Expr::parse(func).into_result().map_err(|errs| {
+                anyhow!(
+                    "Failed to parse function: {}",
+                    errs.into_iter()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })?;
+
+            let program = Program::compile_expr(expr);
+
+            let ctx = program
+                .ops
+                .iter()
+                .filter_map(|op| match op {
+                    OpCode::PushVariable(name) => Some(name.clone()),
+                    _ => None,
+                })
+                .flat_map(|field_name| schema.get_idx(&field_name).map(|field| (field_name, field)))
+                .flat_map(|(field_name, field)| {
+                    doc.get(&field)
+                        .ok_or(anyhow!(
+                            "Cannot handle null value for column: {:?}",
+                            field_name
+                        ))
+                        .and_then(|v: &OwnedValue| owned_val_as_f64(v).map(|f64| (field_name, f64)))
+                })
+                .collect::<HashMap<String, f64>>();
+
+            let result = evaluation::execute(&program, &ctx).map(|v| SearchField {
+                name: func.to_string(),
+                value: Double(v),
+            })?;
+            fields.push(result);
         }
     }
 

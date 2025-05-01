@@ -1,9 +1,0 @@
-WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
-
-expression = { function_call | number | variable }
-
-function_call = { identifier ~ "(" ~ argument_list ~ ")" }
-argument_list = { expression ~ ("," ~ expression)* }
-number = @{ "-"? ~ (ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?) }
-identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-variable = @{ identifier }

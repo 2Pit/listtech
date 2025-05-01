@@ -50,7 +50,7 @@ pub async fn handle_search(
         }
     };
 
-    let response = match build_search_response(&index, &top_docs, &req.select) {
+    let response = match build_search_response(&index, &top_docs, &req) {
         Ok(response) => response,
         Err(err) => {
             error!(?err, "Failed to build search response");
