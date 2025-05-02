@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
     pub select: Vec<String>,
-    pub functions: Vec<String>,
     pub filter: String,
+
+    #[serde(default)]
+    pub functions: Vec<String>,
 
     #[serde(default)]
     pub offset: usize,

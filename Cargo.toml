@@ -1,5 +1,5 @@
 [workspace]
-members = ["indexer", "searcher", "corelib", "scripts/ingest", "cli"]
+members = ["indexer", "searcher", "corelib", "scripts/ingest"]
 resolver = "3"
 
 [workspace.dependencies]
@@ -32,3 +32,16 @@ serde_cbor = "0.11.2"
 # Вспомогательные инструменты
 dotenvy = "0.15"
 tantivy = "0.24.0"
+chrono = "0.4.40"
+chumsky = "0.10.1"
+derive_more = { version = "2.0.1", features = ["full"] }
+
+
+# dev-deps
+tempfile = "3"
+tokio-stream = { version = "0.1", features = ["net"] }
+criterion = "0.5"
+
+# [build-dependencies]
+prost-build = "0.13"
+tonic-build = "0.13"

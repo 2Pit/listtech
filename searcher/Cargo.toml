@@ -34,19 +34,19 @@ thiserror = { workspace = true }
 include_dir = { workspace = true }
 dotenvy = { workspace = true }
 tantivy = { workspace = true }
-chrono = "0.4.40"
-chumsky = "0.10.1"
+chrono.workspace = true
+chumsky.workspace = true
 
 [dev-dependencies]
-tempfile = "3"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
-tokio-stream = { version = "0.1", features = ["net"] }
-criterion = "0.5"
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net"] }
+tokio-stream = { workspace = true, features = ["net"] }
+criterion.workspace = true
 
 [build-dependencies]
-prost-build = "0.13"
-tonic-build = "0.13"
-tokio = { version = "1", features = ["full"] }
+prost-build.workspace = true
+tonic-build.workspace = true
+tokio = { workspace = true, features = ["full"] }
 
 
 # [[bench]]

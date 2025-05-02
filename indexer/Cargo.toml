@@ -11,7 +11,7 @@ corelib = { path = "../corelib" }
 axum = { workspace = true }
 hyper = { workspace = true }
 tokio = { workspace = true }
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { workspace = true, features = ["trace"] }
 
 # Сериализация
 serde = { workspace = true }
@@ -30,10 +30,8 @@ thiserror = { workspace = true }
 include_dir = { workspace = true }
 dotenvy = { workspace = true }
 tantivy = { workspace = true }
-async-trait = "0.1.88"
-futures-util = "0.3.31"
-chrono = "0.4.40"
-derive_more = { version = "2.0.1", features = ["full"] }
+chrono.workspace = true
+derive_more = { workspace = true, features = ["full"] }
 
 
 [lib]
@@ -44,4 +42,3 @@ path = "src/lib.rs"
 prost-build = "0.13"
 tonic-build = "0.13"
 tokio = { version = "1", features = ["full"] }
-# Логирование и трассировка
