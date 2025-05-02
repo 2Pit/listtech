@@ -6,7 +6,32 @@ use chumsky::error::Simple;
 pub enum Expr {
     Number(f64),
     Variable(String),
-    FunctionCall { name: String, args: Vec<Expr> },
+    FunctionCall {
+        name: String,
+        args: Vec<Expr>,
+    },
+    UnaryOp {
+        op: UnaryOp,
+        expr: Box<Expr>,
+    },
+    BinaryOp {
+        op: BinaryOp,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnaryOp {
+    Neg,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
 impl Expr {
@@ -17,45 +42,98 @@ impl Expr {
 
 fn build_parser<'a>() -> impl Parser<'a, &'a str, Expr, extra::Err<Simple<'a, char>>> {
     recursive(|expr| {
-        let number = just('-')
-            .or_not()
-            .then(text::int(10))
+        let number = text::int(10)
             .then(
                 just('.')
                     .ignore_then(text::digits(10).collect::<String>())
                     .or_not(),
             )
-            .map(
-                |((sign, int_part), frac_part): ((Option<char>, &str), Option<String>)| {
-                    let s_num = format!(
-                        "{}{}.{}",
-                        sign.map(|s| s.to_string()).unwrap_or("".to_string()),
-                        int_part,
-                        frac_part.unwrap_or("".to_string())
-                    );
-                    Expr::Number(s_num.parse().unwrap())
-                },
-            );
+            .map(|(int_part, frac_part): (&str, Option<String>)| {
+                let mut s = int_part.to_string();
+                if let Some(frac) = frac_part {
+                    s.push('.');
+                    s.push_str(&frac);
+                }
+                Expr::Number(s.parse::<f64>().unwrap())
+            })
+            .padded();
 
         let ident = text::ident()
-            .map(|s: &str| s.to_string())
-            .map(Expr::Variable);
+            .map(|s: &str| Expr::Variable(s.to_string()))
+            .padded();
 
         let args = expr
             .clone()
             .separated_by(just(',').padded())
             .allow_trailing()
-            .collect::<Vec<_>>()
-            .delimited_by(just('('), just(')'));
+            .collect::<Vec<Expr>>()
+            .delimited_by(just('(').padded(), just(')').padded())
+            .padded();
 
         let func_call = text::ident()
             .then(args)
             .map(|(name, args): (&str, Vec<Expr>)| Expr::FunctionCall {
                 name: name.to_string(),
                 args,
+            })
+            .padded();
+
+        let atom = choice((func_call, ident, number))
+            .or(expr
+                .clone()
+                .delimited_by(just('(').padded(), just(')').padded()))
+            .padded();
+
+        let unary = just('-')
+            .or_not()
+            .then(atom)
+            .map(
+                |(maybe_minus, expr): (Option<char>, Expr)| match maybe_minus {
+                    Some(_) => Expr::UnaryOp {
+                        op: UnaryOp::Neg,
+                        expr: Box::new(expr),
+                    },
+                    None => expr,
+                },
+            )
+            .padded();
+
+        let op_mul_div = just('*')
+            .padded()
+            .to(BinaryOp::Mul)
+            .or(just('/').padded().to(BinaryOp::Div))
+            .map(|op: BinaryOp| op)
+            .padded();
+
+        let product = unary
+            .clone()
+            .foldl(op_mul_div.then(unary).repeated(), |lhs, (op, rhs)| {
+                Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            })
+            .padded();
+
+        let op_add_sub = just('+')
+            .padded()
+            .to(BinaryOp::Add)
+            .or(just('-').padded().to(BinaryOp::Sub))
+            .map(|op: BinaryOp| op)
+            .padded();
+
+        let sum = product
+            .clone()
+            .foldl(op_add_sub.then(product).repeated(), |lhs, (op, rhs)| {
+                Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
             });
 
-        choice((func_call.or(ident), number))
+        sum
     })
     .then_ignore(end())
 }
