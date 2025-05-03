@@ -14,7 +14,7 @@ pub struct IndexableField {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum FieldValue {
     // value types
     Bool(bool),

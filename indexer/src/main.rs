@@ -12,7 +12,7 @@ async fn main() -> Result<(), Error> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let api_port = read_env_var("INDEXER_HTTP_API_PORT", None)?;
+    let api_port = read_env_var("INDEXER_HTTP_PORT", None)?;
     let swagger_port = read_env_var("INDEXER_SWAGGER_PORT", None)?;
 
     let swagger = tokio::spawn(swagger_server::run_swagger_server(swagger_port));

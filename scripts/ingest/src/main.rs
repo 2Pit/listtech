@@ -1,23 +1,18 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
-use corelib::proto::indexer::{
-    AddDocumentRequest, Document, IndexableField, indexable_field::FacetWrapper,
-    indexable_field::Value, indexer_api_client::IndexerApiClient,
-};
 use corelib::telemetry::init::{init_logging, read_env_var};
+use indexer::api;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use tonic::Request;
-use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
     init_logging();
 
-    let port: u16 = read_env_var("INDEXER_GRPC_PORT", None)?;
-    let grpc_addr = format!("http://localhost:{}", port);
-    let mut client = IndexerApiClient::connect(grpc_addr).await?;
+    let api_port: u16 = read_env_var("INDEXER_HTTP_PORT", None)?;
+    let api_addr = format!("http://localhost:{}", api_port);
+    let client = reqwest::Client::new();
 
     let file = File::open("data/meta_Electronics.json").context("cannot open input file")?;
     let reader = BufReader::new(file);
@@ -31,33 +26,40 @@ async fn main() -> Result<()> {
         let json: serde_json::Value =
             serde_json::from_str(&line).with_context(|| format!("invalid JSON at line {i}"))?;
 
-        let doc = Document {
-            schema_version: "v1".to_string(),
+        let doc = api::Document {
+            index_name: "electronics".to_string(),
+            index_version: 1,
             fields: map_json_to_fields(&json),
         };
 
-        let request = Request::new(AddDocumentRequest {
-            document: Some(doc),
-        });
+        let res = client
+            .post(format!("{}/v1/doc", api_addr))
+            .json(&doc)
+            .send()
+            .await
+            .with_context(|| format!("failed to send document at line {i}"))?;
 
-        match client.add_document(request).await {
-            Ok(_) => info!(line = i, "document indexed"),
-            Err(err) => error!(line = i, error = %err, "failed to index"),
+        let status = res.status();
+        if !status.is_success() {
+            let text = res.text().await.unwrap_or_default();
+            tracing::error!(line = i, status = %status, body = %text, "indexing failed");
+        } else {
+            tracing::info!(line = i, "indexed");
         }
     }
 
     Ok(())
 }
 
-fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
+fn map_json_to_fields(json: &serde_json::Value) -> Vec<api::IndexableField> {
     let mut fields = Vec::new();
 
     macro_rules! add_string {
         ($name:expr) => {
             if let Some(s) = json.get($name).and_then(|v| v.as_str()) {
-                fields.push(IndexableField {
+                fields.push(api::IndexableField {
                     name: $name.to_string(),
-                    value: Some(Value::StringValue(s.to_string())),
+                    value: Some(api::FieldValue::String(s.to_string())),
                 });
             }
         };
@@ -71,9 +73,9 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                 .map(|arr| arr.first().and_then(|v| v.as_str()).unwrap_or(""))
                 .unwrap_or("");
 
-            fields.push(IndexableField {
+            fields.push(api::IndexableField {
                 name: $name.to_string(),
-                value: Some(Value::StringValue(val.to_string())),
+                value: Some(api::FieldValue::String(val.to_string())),
             });
         };
     }
@@ -93,9 +95,9 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
 
     if let Some(price_str) = json.get("price").and_then(|v| v.as_str()) {
         if let Ok(price) = price_str.trim_start_matches('$').parse::<f64>() {
-            fields.push(IndexableField {
+            fields.push(api::IndexableField {
                 name: "price".to_string(),
-                value: Some(Value::DoubleValue(price)),
+                value: Some(api::FieldValue::Double(price)),
             });
         }
     }
@@ -103,20 +105,18 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
     if let Some(date_str) = json.get("date").and_then(|v| v.as_str()) {
         if let Ok(date) = NaiveDate::parse_from_str(date_str, "%B %d, %Y") {
             if let Some(ts) = date.and_hms_opt(0, 0, 0) {
-                fields.push(IndexableField {
+                fields.push(api::IndexableField {
                     name: "timestamp_creation_ms".to_string(),
-                    value: Some(Value::TimestampMsValue(ts.and_utc().timestamp_millis())),
+                    value: Some(api::FieldValue::DateTime(ts.format("%+").to_string())),
                 });
             }
         }
     }
 
     if let Some(s) = json.get("brand").and_then(|v| v.as_str()) {
-        fields.push(IndexableField {
+        fields.push(api::IndexableField {
             name: "brand".to_string(),
-            value: Some(Value::FacetWrapper(FacetWrapper {
-                facets: vec![format!("/{}", s)],
-            })),
+            value: Some(api::FieldValue::Tree(vec![format!("/{}", s)])),
         });
     }
 
@@ -128,11 +128,9 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
             .join("/");
 
         if !path.is_empty() {
-            fields.push(IndexableField {
+            fields.push(api::IndexableField {
                 name: "category".to_string(),
-                value: Some(Value::FacetWrapper(FacetWrapper {
-                    facets: vec![format!("/{}", path)],
-                })),
+                value: Some(api::FieldValue::Tree(vec![format!("/{}", path)])),
             });
         }
     }
@@ -143,9 +141,9 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                 if let Some((rank_str, cat_str)) = text.split_once(" in ") {
                     let rank_clean = rank_str.trim_start_matches(">#").replace(",", "");
                     if let Ok(rank_value) = rank_clean.parse::<u64>() {
-                        fields.push(IndexableField {
+                        fields.push(api::IndexableField {
                             name: "rank_position".to_string(),
-                            value: Some(Value::UlongValue(rank_value)),
+                            value: Some(api::FieldValue::Ulong(rank_value)),
                         });
                     }
 
@@ -153,11 +151,9 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
                         "/{}",
                         cat_str.replace(" &gt; ", "/").replace(" > ", "/").trim()
                     );
-                    fields.push(IndexableField {
+                    fields.push(api::IndexableField {
                         name: "rank_facet".to_string(),
-                        value: Some(Value::FacetWrapper(FacetWrapper {
-                            facets: vec![facet_path],
-                        })),
+                        value: Some(api::FieldValue::Tree(vec![facet_path])),
                     });
                 }
             }
@@ -165,15 +161,15 @@ fn map_json_to_fields(json: &serde_json::Value) -> Vec<IndexableField> {
     }
 
     for f in &fields {
-        if let Some(Value::StringValue(ref s)) = f.value {
+        if let Some(api::FieldValue::String(ref s)) = f.value {
             if s.len() > 65530 {
-                tracing::warn!(field = %f.name, len = s.len(), value = %s, "StringValue too long");
+                tracing::warn!(field = %f.name, len = s.len(), value = %s, "String too long");
             }
         }
-        if let Some(Value::FacetWrapper(ref facet)) = f.value {
-            for facet_path in &facet.facets {
-                if facet_path.len() > 65530 {
-                    tracing::warn!(field = %f.name, len = facet_path.len(), value = %facet_path, "Facet path too long");
+        if let Some(api::FieldValue::Tree(ref paths)) = f.value {
+            for path in paths {
+                if path.len() > 65530 {
+                    tracing::warn!(field = %f.name, len = path.len(), value = %path, "Facet path too long");
                 }
             }
         }
