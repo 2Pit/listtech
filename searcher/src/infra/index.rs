@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use corelib::model::{delta_schema::DeltaSchema, meta_schema::MetaSchema};
+use corelib::api;
+use corelib::model;
 use std::path::Path;
 use tantivy::{Index, IndexReader, ReloadPolicy};
 // use tantivy::directory::{Directory, RamDirectory};
@@ -10,7 +11,7 @@ use tantivy::{Index, IndexReader, ReloadPolicy};
 pub struct SearchIndex {
     pub index: Index,
     pub reader: IndexReader,
-    pub schema: MetaSchema,
+    pub schema: model::MetaSchema,
 }
 
 impl SearchIndex {
@@ -19,8 +20,8 @@ impl SearchIndex {
             .with_context(|| format!("Failed to open index in {:?}", index_dir))?;
 
         let delta_schema =
-            DeltaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
-        let meta_schema = MetaSchema::from_tantivy_and_delta(&index.schema(), delta_schema)?;
+            api::MetaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
+        let meta_schema = model::MetaSchema::build_model_schema(&index.schema(), delta_schema)?;
 
         let reader = index
             .reader_builder()

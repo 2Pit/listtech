@@ -1,8 +1,4 @@
-use crate::api;
-use crate::model::doc_mapper;
-
 use anyhow::{Context, Result};
-use corelib::model::delta_schema::DeltaSchema;
 use corelib::model::meta_schema::MetaSchema;
 use std::path::Path;
 use std::sync::Arc;
@@ -10,6 +6,9 @@ use std::time::Duration;
 use tantivy::schema::Term;
 use tantivy::{Index, IndexWriter};
 use tokio::sync::Mutex;
+
+use crate::api;
+use crate::model::doc_mapper;
 
 #[derive(Clone)]
 pub struct IndexState {
@@ -22,8 +21,8 @@ impl IndexState {
     pub async fn init_index(index_dir: &str) -> Result<IndexState> {
         let index: Index = Index::open_in_dir(Path::new(index_dir))?;
         let delta_schema =
-            DeltaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
-        let meta_schema = MetaSchema::from_tantivy_and_delta(&index.schema(), delta_schema)?;
+            api::MetaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
+        let meta_schema = MetaSchema::build_model_schema(&index.schema(), delta_schema)?;
         let writer = Self::init_writer(&index).await?;
 
         Ok(IndexState {

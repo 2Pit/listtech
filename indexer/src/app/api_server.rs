@@ -1,15 +1,21 @@
-use crate::infra::index::IndexState;
-use crate::model;
-
 use anyhow::Result;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use http::{HeaderMap, header};
 use hyper::StatusCode;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
+
+use crate::api;
+use crate::infra::index::IndexState;
+use crate::model;
+use crate::model::typed_response::TypedResponse;
 
 /// Запуск HTTP API сервера
 pub async fn run_http_server(port: u16) -> Result<()> {
@@ -36,6 +42,7 @@ pub async fn run_http_server(port: u16) -> Result<()> {
 
     let app = Router::new()
         .route("/v1/doc", post(handle_add_document))
+        .route("/v1/schema", get(get_schema))
         .with_state(index_state)
         .layer(TraceLayer::new_for_http());
 
@@ -56,5 +63,26 @@ pub async fn handle_add_document(
             error!(?err, "Failed to index document");
             (StatusCode::BAD_REQUEST, format!("Failed to index: {err}")).into_response()
         }
+    }
+}
+
+/// Обработчик ручки GET /v1/schema
+pub async fn get_schema(
+    State(state): State<Arc<IndexState>>,
+    Query(params): Query<api::GetSchemaRequest>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    if state.schema.name == params.schema_name {
+        let accept = headers
+            .get(header::ACCEPT)
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string());
+
+        IntoResponse::into_response(TypedResponse::<api::MetaSchema> {
+            value: state.schema.clone().into(),
+            accept,
+        })
+    } else {
+        StatusCode::NOT_FOUND.into_response()
     }
 }

@@ -4,7 +4,7 @@ use crate::domain::document::{map_owned_value, owned_val_as_f64};
 use crate::infra::index::SearchIndex;
 
 use anyhow::{Result, anyhow};
-use corelib::model::meta_schema::MetaColumnType;
+use corelib::api::MetaColumnType;
 use std::collections::{HashMap, HashSet};
 use tantivy::query::QueryParser;
 use tantivy::{
