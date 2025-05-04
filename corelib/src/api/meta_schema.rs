@@ -7,8 +7,6 @@ use std::fs;
 use std::path::Path;
 use tracing::info;
 
-use tantivy::schema::Field as Idx;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetaSchema {
     pub name: String,

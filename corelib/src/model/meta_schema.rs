@@ -1,10 +1,6 @@
 use anyhow::Result;
 use anyhow::anyhow;
 use std::collections::HashMap;
-use std::collections::HashSet;
-use tantivy::schema::IndexRecordOption;
-use tantivy::schema::NumericOptions;
-use tantivy::schema::*;
 use tantivy::schema::{FieldType as TantivyFieldType, Schema as TantivySchema};
 
 use crate::api;
@@ -22,15 +18,15 @@ pub struct MetaSchema {
 
 #[derive(Debug, Clone)]
 pub struct MetaColumn {
-    pub idx: Idx,
     pub name: String,
+    pub idx: Idx,
+    pub tantivy_type: TantivyFieldType,
     pub column_type: api::MetaColumnType,
     pub is_id: bool,
     pub is_nullable: bool,
     pub is_eq: bool,
     pub is_sort_range: bool,
     pub is_full_text: bool,
-    pub tantivy_type: TantivyFieldType,
 }
 
 impl MetaSchema {
@@ -60,112 +56,56 @@ impl MetaSchema {
             .map(|idx| &self.columns[idx.field_id() as usize])
     }
 
-    pub fn build_model_schema(
-        tantivy_schema: &TantivySchema,
-        api_schema: api::MetaSchema,
-    ) -> Result<Self> {
-        let mut columns = Vec::new();
-        let mut idx_by_name = HashMap::new();
-        let mut id_column = None;
-
-        let col_map = api_schema
+    pub fn from_api(tantivy_schema: &TantivySchema, api_schema: api::MetaSchema) -> Result<Self> {
+        let columns: Vec<MetaColumn> = api_schema
             .columns
+            .into_iter()
+            .map(|api_col| MetaColumn::from_api(api_col, tantivy_schema))
+            .collect::<Result<Vec<_>>>()?;
+
+        let id_column = columns
             .iter()
-            .map(|dc| (dc.name.as_str(), dc))
-            .collect::<HashMap<_, _>>();
+            .find(|col| col.is_id)
+            .ok_or(anyhow!("Missing ID column"))?
+            .clone();
 
-        for (idx, field_entry) in tantivy_schema.fields() {
-            let field_name = field_entry.name();
-
-            let api_column_opt = col_map.get(field_name);
-
-            let (is_eq, is_sort_range, meta_col_type) = match field_entry.field_type() {
-                TantivyFieldType::Str(opt) => (
-                    opt.get_indexing_options().is_some(),
-                    opt.is_fast(),
-                    api::MetaColumnType::Bool,
-                ),
-                TantivyFieldType::U64(opt) => {
-                    (opt.is_indexed(), opt.is_fast(), api::MetaColumnType::Ulong)
-                }
-                TantivyFieldType::I64(opt) => {
-                    (opt.is_indexed(), opt.is_fast(), api::MetaColumnType::Long)
-                }
-                TantivyFieldType::F64(opt) => {
-                    (opt.is_indexed(), opt.is_fast(), api::MetaColumnType::Double)
-                }
-                TantivyFieldType::Bool(opt) => {
-                    (opt.is_indexed(), opt.is_fast(), api::MetaColumnType::Bool)
-                }
-                TantivyFieldType::Date(opt) => (
-                    opt.is_indexed(),
-                    opt.is_fast(),
-                    api::MetaColumnType::DateTime,
-                ),
-                TantivyFieldType::Facet(_) => (true, true, api::MetaColumnType::Tree),
-                TantivyFieldType::Bytes(opt) => {
-                    (opt.is_indexed(), opt.is_fast(), api::MetaColumnType::Bytes)
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported field type" // field_entry.field_type()
-                    ));
-                } // TantivyFieldType::JsonObject(opt) => (opt.is_indexed(), opt.is_fast()),
-                  // TantivyFieldType::IpAddr(opt) => (opt.is_indexed(), opt.is_fast()),
-            };
-
-            let is_full_text = match field_entry.field_type() {
-                TantivyFieldType::Str(opt) => opt
-                    .get_indexing_options()
-                    .filter(|i| i.index_option() == IndexRecordOption::WithFreqsAndPositions)
-                    .is_some(),
-                _ => false,
-            };
-
-            // Если в дельте нет — ставим дефолтные значения
-            let api_column = if let Some(api_column) = api_column_opt {
-                (**api_column).clone()
-            } else {
-                api::MetaColumn {
-                    // idx,
-                    name: field_name.to_string(),
-                    column_type: meta_col_type,
-                    modifiers: HashSet::new(),
-                }
-            };
-
-            let meta_column = MetaColumn {
-                idx,
-                name: field_name.to_string(),
-                tantivy_type: field_entry.field_type().clone(),
-                column_type: api_column.column_type.clone(),
-                is_id: api_column.modifiers.contains(&api::MetaColumnModifier::Id),
-                is_nullable: api_column
-                    .modifiers
-                    .contains(&api::MetaColumnModifier::Nullable),
-                is_eq,
-                is_sort_range,
-                is_full_text,
-            };
-
-            if api_column.modifiers.contains(&api::MetaColumnModifier::Id) {
-                if id_column.is_some() {
-                    return Err(anyhow!("Multiple ID columns defined"));
-                }
-                id_column = Some(meta_column.clone());
-            }
-
-            idx_by_name.insert(field_name.to_string(), idx);
-            columns.push(meta_column);
+        let mut idx_by_name = HashMap::new();
+        for column in &columns {
+            idx_by_name.insert(column.name.clone(), column.idx);
         }
-
-        let id_column = id_column.ok_or_else(|| anyhow!("No ID column defined"))?;
 
         Ok(Self {
             name: api_schema.name,
             id_column,
             columns,
             idx_by_name,
+        })
+    }
+}
+
+impl MetaColumn {
+    fn from_api(api_column: api::MetaColumn, tantivy_schema: &TantivySchema) -> Result<Self> {
+        let idx = tantivy_schema.get_field(&api_column.name)?;
+        let filed_entry = tantivy_schema.get_field_entry(idx);
+
+        Ok(Self {
+            name: api_column.name,
+            idx,
+            tantivy_type: filed_entry.field_type().clone(),
+            column_type: api_column.column_type,
+            is_id: api_column.modifiers.contains(&api::MetaColumnModifier::Id),
+            is_nullable: api_column
+                .modifiers
+                .contains(&api::MetaColumnModifier::Nullable),
+            is_eq: api_column
+                .modifiers
+                .contains(&api::MetaColumnModifier::Equals),
+            is_sort_range: api_column
+                .modifiers
+                .contains(&api::MetaColumnModifier::FastSortable),
+            is_full_text: api_column
+                .modifiers
+                .contains(&api::MetaColumnModifier::FullText),
         })
     }
 }
@@ -190,96 +130,6 @@ impl MetaSchema {
 //             columns: value.columns.into_iter().map(MetaColumn::from).collect(),
 //             id_column,
 //             idx_by_name,
-//         }
-//     }
-// }
-
-// impl From<api::MetaColumn> for MetaColumn {
-//     fn from(raw: api::MetaColumn) -> Self {
-//         let is_id = raw.modifiers.contains(&api::MetaColumnModifier::Id);
-//         let is_eq = raw.modifiers.contains(&api::MetaColumnModifier::Equals);
-//         let is_sort_range = raw
-//             .modifiers
-//             .contains(&api::MetaColumnModifier::FastSortable);
-//         let is_full_text = raw.modifiers.contains(&api::MetaColumnModifier::FullText);
-//         let is_nullable = raw.modifiers.contains(&api::MetaColumnModifier::Nullable);
-
-//         let tantivy_type = match raw.column_type {
-//             api::MetaColumnType::Bool
-//             | api::MetaColumnType::Ulong
-//             | api::MetaColumnType::Long
-//             | api::MetaColumnType::Double => {
-//                 let mut opt = NumericOptions::from(STORED);
-//                 if is_eq {
-//                     opt = opt | NumericOptions::from(INDEXED)
-//                 };
-//                 if is_sort_range {
-//                     opt = opt | NumericOptions::from(FAST)
-//                 };
-//                 match raw.column_type {
-//                     api::MetaColumnType::Bool => TantivyFieldType::Bool(opt),
-//                     api::MetaColumnType::Ulong => TantivyFieldType::U64(opt),
-//                     api::MetaColumnType::Long => TantivyFieldType::I64(opt),
-//                     api::MetaColumnType::Double => TantivyFieldType::F64(opt),
-//                     _ => todo!(),
-//                 }
-//             }
-
-//             api::MetaColumnType::DateTime => {
-//                 let mut opt = DateOptions::from(STORED);
-//                 if is_eq {
-//                     opt = opt | DateOptions::from(INDEXED)
-//                 };
-//                 if is_sort_range {
-//                     opt = opt | DateOptions::from(FAST)
-//                 };
-//                 TantivyFieldType::Date(opt)
-//             }
-//             api::MetaColumnType::String => {
-//                 let mut opt = TextOptions::from(STORED);
-//                 if is_eq {
-//                     opt = opt | TextOptions::from(STRING)
-//                 };
-//                 if is_sort_range {
-//                     opt = opt | TextOptions::from(FAST)
-//                 };
-//                 if is_full_text {
-//                     opt = opt | TextOptions::from(TEXT)
-//                 };
-//                 TantivyFieldType::Str(opt)
-//             }
-//             api::MetaColumnType::Bytes => {
-//                 let mut opt = BytesOptions::from(STORED);
-//                 if is_eq {
-//                     opt = opt | BytesOptions::from(INDEXED)
-//                 };
-//                 if is_sort_range {
-//                     opt = opt | BytesOptions::from(FAST)
-//                 };
-//                 TantivyFieldType::Bytes(opt)
-//             }
-//             api::MetaColumnType::Tree => {
-//                 let mut opt = FacetOptions::from(STORED);
-//                 if is_eq {
-//                     opt = opt | FacetOptions::from(INDEXED)
-//                 };
-//                 // if let Some(tpe) = col_modif.1 {
-//                 //     opt = opt | FacetOptions::from(tpe)
-//                 // };
-//                 TantivyFieldType::Facet(opt)
-//             }
-//         };
-
-//         MetaColumn {
-//             idx: raw.idx,
-//             name: raw.name,
-//             column_type: raw.column_type,
-//             is_id,
-//             is_nullable,
-//             is_eq,
-//             is_sort_range,
-//             is_full_text,
-//             tantivy_type,
 //         }
 //     }
 // }

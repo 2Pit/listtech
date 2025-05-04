@@ -35,6 +35,7 @@ derive_more = { workspace = true, features = ["full"] }
 http.workspace = true
 http-body-util.workspace = true
 bytes.workspace = true
+dashmap = "6.1.0"
 
 
 [lib]

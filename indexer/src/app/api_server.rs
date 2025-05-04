@@ -23,7 +23,7 @@ pub async fn run_http_server(port: u16) -> Result<()> {
 
     // Читаем индекс
     info!("Opening search index at './data/index'");
-    let index_state = match IndexState::init_index("./data/index").await {
+    let index_state = match IndexState::read_index_state("./data/index").await {
         Ok(index_state) => Arc::new(index_state),
         Err(e) => {
             error!(error = %e, "Failed to initialize index");

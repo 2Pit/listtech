@@ -21,7 +21,7 @@ impl SearchIndex {
 
         let delta_schema =
             api::MetaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
-        let meta_schema = model::MetaSchema::build_model_schema(&index.schema(), delta_schema)?;
+        let meta_schema = model::MetaSchema::from_api(&index.schema(), delta_schema)?;
 
         let reader = index
             .reader_builder()
