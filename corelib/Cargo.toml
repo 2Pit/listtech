@@ -4,20 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = "0.8"
-include_dir = "0.7"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-mime_guess = "2.0"
-tantivy = { workspace = true }
-derive_more = { version = "2.0.1", features = ["full"] }
+axum.workspace = true
+include_dir.workspace = true
+mime_guess.workspace = true
+tantivy.workspace = true
+derive_more = { workspace = true, features = ["full"] }
+
+bytes.workspace = true
+http.workspace = true
+http-body-util.workspace = true
 
 # Логирование и трассировка
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 # Обработка ошибок
-anyhow = "1.0"
+anyhow.workspace = true
+
+# Сериализация
+serde = { workspace = true }
+serde_json.workspace = true
+serde_cbor.workspace = true
 
 [build-dependencies]
 prost-build = "0.13"

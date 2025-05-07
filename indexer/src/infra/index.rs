@@ -34,11 +34,15 @@ impl IndexState {
         })
     }
 
-    pub async fn read_index_state(index_dir: &str) -> Result<IndexState> {
-        let index: Index = Index::open_in_dir(Path::new(index_dir))?;
-        let delta_schema =
-            api::MetaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
-        let meta_schema = MetaSchema::from_api(&index.schema(), delta_schema)?;
+    pub async fn read_index_state(index_dir: &Path, schema_name: &str) -> Result<IndexState> {
+        let index: Index = Index::open_in_dir(index_dir)?;
+
+        let delta_path = index_dir.join("delta_schema.json");
+        let delta_schema = api::MetaSchema::from_json_file(&delta_path)?;
+
+        let mut meta_schema = MetaSchema::from_api(&index.schema(), delta_schema)?;
+        meta_schema.name = schema_name.to_string();
+
         let writer = Self::init_writer(&index).await?;
 
         Ok(IndexState {
