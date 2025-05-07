@@ -37,8 +37,8 @@ pub async fn run_http_server(port: u16, index_registry_dir: String) -> Result<()
 
     let app = Router::new()
         .route("/v1/doc", post(handle_add_document))
-        .route("/v1/schema/:schema_name", get(get_schema))
-        .route("/v1/schema/", post(create_new_schema))
+        .route("/v1/schema/{schema_name}", get(get_schema))
+        .route("/v1/schema", post(create_new_schema))
         .with_state(index_registry)
         .layer(TraceLayer::new_for_http());
 
@@ -49,16 +49,15 @@ pub async fn run_http_server(port: u16, index_registry_dir: String) -> Result<()
 }
 
 /// Обработчик ручки POST /v1/doc
-#[axum::debug_handler]
 pub async fn handle_add_document(
     Accept(accept): Accept,
     State(registry): State<IndexRegistry>,
     TypedRequest(body): TypedRequest<api::AddDocumentRequest>,
 ) -> TypedResponse<()> {
-    let schema_name = &body.schema_name;
+    let index_name = &body.document.index_name;
 
-    let Some(index_state) = registry.inner.get(schema_name) else {
-        return TypedResponse::not_found(format!("Unknown schema_name: {}", schema_name), accept);
+    let Some(index_state) = registry.inner.get(index_name) else {
+        return TypedResponse::not_found(format!("Unknown index_name: {}", index_name), accept);
     };
 
     match index_state.add_document_safely(body.document).await {

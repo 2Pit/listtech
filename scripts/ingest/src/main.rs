@@ -33,10 +33,11 @@ async fn main() -> Result<()> {
             index_version: 1,
             fields: map_json_to_fields(&json),
         };
+        let doc_request = api::AddDocumentRequest { document: doc };
 
         let res = client
             .post(format!("{}/v1/doc", api_addr))
-            .json(&doc)
+            .json(&doc_request)
             .send()
             .await
             .with_context(|| format!("failed to send document at line {i}"))?;

@@ -56,7 +56,9 @@ impl<'a> FieldsBuilder<'a> {
                 if let Some(ts) = date.and_hms_opt(0, 0, 0) {
                     self.fields.push(api::IndexableField {
                         name: "timestamp_creation_ms".to_string(),
-                        value: Some(api::FieldValue::DateTime(ts.format("%+").to_string())),
+                        value: Some(api::FieldValue::DateTime(
+                            ts.format("%Y-%m-%dT%H:%M:%S").to_string(),
+                        )),
                     });
                 }
             }

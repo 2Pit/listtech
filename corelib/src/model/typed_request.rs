@@ -1,10 +1,9 @@
 use anyhow::Error;
 use axum::{
     body::Body,
-    extract::{FromRequest, FromRequestParts, Request},
+    extract::{FromRequest, Request},
     http::header::CONTENT_TYPE,
 };
-use http::{StatusCode, request::Parts};
 use serde::de::DeserializeOwned;
 
 use super::typed_response::ErrorResponse;

@@ -19,9 +19,8 @@ impl SearchIndex {
         let index = Index::open_in_dir(Path::new(index_dir))
             .with_context(|| format!("Failed to open index in {:?}", index_dir))?;
 
-        let delta_schema =
-            api::MetaSchema::from_json_file(&format!("{}/delta_schema.json", index_dir))?;
-        let meta_schema = model::MetaSchema::from_api(&index.schema(), delta_schema)?;
+        let meta_schema = api::MetaSchema::from_json_file(&format!("{}/meta.json", index_dir))?;
+        let meta_schema = model::MetaSchema::from_api(&index.schema(), meta_schema)?;
 
         let reader = index
             .reader_builder()

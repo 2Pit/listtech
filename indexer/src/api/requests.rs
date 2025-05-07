@@ -5,7 +5,6 @@ use corelib::api;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddDocumentRequest {
-    pub schema_name: String,
     pub document: Document,
 }
 
