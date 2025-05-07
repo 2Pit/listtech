@@ -57,7 +57,7 @@ impl<'a> FieldsBuilder<'a> {
                     self.fields.push(api::IndexableField {
                         name: "timestamp_creation_ms".to_string(),
                         value: Some(api::FieldValue::DateTime(
-                            ts.format("%Y-%m-%dT%H:%M:%S").to_string(),
+                            ts.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                         )),
                     });
                 }

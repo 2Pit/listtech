@@ -39,8 +39,23 @@ impl IndexState {
         api_schema: api::MetaSchema,
         index_dir: &str,
     ) -> Result<IndexState> {
+        use tokio::io::AsyncWriteExt;
+
         let tantivy_schema = create_tantivy_schema_from_api(&api_schema);
         let index = Index::create_in_dir(Path::new(index_dir), tantivy_schema)?;
+
+        let schema_json = serde_json::to_vec_pretty(&api_schema)
+            .context("Failed to serialize MetaSchema to JSON")?;
+
+        let delta_path = Path::new(index_dir).join("delta_schema.json");
+        let mut file = tokio::fs::File::create(&delta_path)
+            .await
+            .with_context(|| format!("Failed to create schema file: {:?}", delta_path))?;
+
+        file.write_all(&schema_json)
+            .await
+            .context("Failed to write schema to file")?;
+
         let meta_schema = MetaSchema::from_api(&index.schema(), api_schema)?;
         let writer = Self::init_writer(&index).await?;
 
@@ -93,8 +108,7 @@ impl IndexState {
     }
 
     pub async fn add_document_safely(&self, doc: api::Document) -> Result<()> {
-        let tantivy_doc =
-            doc_mapper::to_tantivy_doc(&self.schema, &doc).context("invalid document structure")?;
+        let tantivy_doc = doc_mapper::to_tantivy_doc(&self.schema, &doc)?;
 
         let writer = self.writer.lock().await;
 
