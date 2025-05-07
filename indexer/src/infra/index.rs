@@ -10,6 +10,8 @@ use tokio::sync::Mutex;
 use crate::api;
 use crate::model::doc_mapper;
 
+use super::index_registry::IndexRegistry;
+
 #[derive(Clone)]
 pub struct IndexState {
     pub index: Index,
@@ -18,6 +20,21 @@ pub struct IndexState {
 }
 
 impl IndexState {
+    pub async fn init_index_state(
+        registry: &IndexRegistry,
+        schema: &api::MetaSchema,
+    ) -> anyhow::Result<IndexState> {
+        let schema_name = &schema.name;
+        let index_path = registry.indexes_root.join(schema_name).join("index");
+
+        // Создание директорий, если не существует
+        tokio::fs::create_dir_all(&index_path)
+            .await
+            .with_context(|| format!("Failed to create index directory: {:?}", index_path))?;
+
+        IndexState::create_index_state(schema.clone(), index_path.to_str().unwrap()).await
+    }
+
     pub async fn create_index_state(
         api_schema: api::MetaSchema,
         index_dir: &str,

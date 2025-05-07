@@ -8,7 +8,7 @@ edition = "2024"
 corelib = { path = "../corelib" }
 
 # HTTP-сервер и middleware
-axum = { workspace = true }
+axum = { workspace = true, features = ["macros"] }
 hyper = { workspace = true }
 tokio = { workspace = true }
 tower-http = { workspace = true, features = ["trace"] }
@@ -36,6 +36,7 @@ http.workspace = true
 http-body-util.workspace = true
 bytes.workspace = true
 dashmap = "6.1.0"
+tower = "0.5.2"
 
 
 [lib]
