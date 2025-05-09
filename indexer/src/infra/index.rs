@@ -202,27 +202,34 @@ pub fn create_tantivy_schema_from_api(api_schema: &api::MetaSchema) -> tantivy::
                     opt = opt | TextOptions::from(STRING)
                 };
                 if is_sort_range {
-                    opt = opt | TextOptions::from(FAST)
-                };
-                if is_full_text {
-                    opt = opt | TextOptions::from(TEXT)
+                    opt = opt | TextOptions::from(FAST);
                 };
                 schema_builder.add_text_field(&api_col.name, opt);
+
+                if is_full_text {
+                    let text_opt = TextOptions::from(TEXT).set_indexing_options(
+                        TextFieldIndexing::default()
+                            .set_tokenizer("default")
+                            .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                    );
+                    schema_builder
+                        .add_text_field(format!("{}_en", &api_col.name).as_str(), text_opt);
+                };
             }
             api::MetaColumnType::Bytes => {
                 let mut opt = BytesOptions::from(STORED);
                 if is_eq {
-                    opt = opt | BytesOptions::from(INDEXED)
+                    opt = opt | BytesOptions::from(INDEXED);
                 };
                 if is_sort_range {
-                    opt = opt | BytesOptions::from(FAST)
+                    opt = opt | BytesOptions::from(FAST);
                 };
                 schema_builder.add_bytes_field(&api_col.name, opt);
             }
             api::MetaColumnType::Tree => {
                 let mut opt = FacetOptions::from(STORED);
                 if is_eq {
-                    opt = opt | FacetOptions::from(INDEXED)
+                    opt = opt | FacetOptions::from(INDEXED);
                 };
                 // if let Some(tpe) = col_modif.1 {
                 //     opt = opt | FacetOptions::from(tpe)

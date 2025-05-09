@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
     pub select: Vec<String>,
+    pub from: String,
     pub filter: String,
+
+    #[serde(default)]
+    pub search: Option<String>,
 
     #[serde(default)]
     pub functions: Vec<String>,
@@ -22,6 +26,11 @@ const fn default_limit() -> usize {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResponse {
+    pub rows: Vec<Row>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Row {
     pub fields: Vec<SearchField>,
 }
 

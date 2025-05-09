@@ -36,6 +36,9 @@ dotenvy = { workspace = true }
 tantivy = { workspace = true }
 chrono.workspace = true
 chumsky.workspace = true
+dashmap.workspace = true
+tower.workspace = true
+indexmap = "2.9.0"
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -1,11 +1,9 @@
-use crate::api::SearchValue::*;
-use crate::api::{self, SearchField};
-use crate::domain::document::{map_owned_value, owned_val_as_f64};
-use crate::infra::index::SearchIndex;
-
 use anyhow::{Result, anyhow};
 use corelib::api::MetaColumnType;
-use std::collections::{HashMap, HashSet};
+use corelib::model::MetaSchema;
+use indexmap::IndexSet;
+use std::collections::HashMap;
+use tantivy::collector;
 use tantivy::query::QueryParser;
 use tantivy::{
     DocAddress, Score,
@@ -14,9 +12,15 @@ use tantivy::{
 };
 use tonic::Status;
 
+use crate::api::SearchValue::*;
+use crate::api::{self, SearchField};
+use crate::domain::document::{map_owned_value, owned_val_as_f64};
+use crate::infra::index::SearchIndex;
+
 use super::online::evaluation;
 use super::online::parsing::Expr;
 use super::online::program::{OpCode, Program};
+use super::virtual_collector::SortByVirtualFieldCollector;
 
 pub fn execute_search(
     index: &SearchIndex,
@@ -32,12 +36,31 @@ pub fn execute_search(
         .parse_query(&req.filter)
         .map_err(|e| Status::invalid_argument(format!("Invalid query: {e}")))?;
 
-    let top_docs = searcher
-        .search(
-            &query,
-            &TopDocs::with_limit(req.limit).and_offset(req.offset),
-        )
-        .map_err(|e| Status::internal(format!("Search failed: {e}")))?;
+    let top_docs = match &req.search {
+        Some(sort_func) => {
+            let program = parse_and_compile_program(&sort_func)
+                .map_err(|e| Status::internal(format!("Search failed: {e}")))?;
+
+            let collector = SortByVirtualFieldCollector {
+                limit: req.limit,
+                offset: req.offset,
+                program,
+                index,
+            };
+
+            searcher
+                .search(&query, &collector)
+                .map(|res| res.into_iter().map(|(s, d)| (s as f32, d)).collect())
+                .map_err(|e| Status::internal(format!("Search failed: {e}")))?
+        }
+        None => {
+            let collector = TopDocs::with_limit(req.limit).and_offset(req.offset);
+
+            searcher
+                .search(&query, &collector)
+                .map_err(|e| Status::internal(format!("Search failed: {e}")))?
+        }
+    };
 
     Ok(top_docs)
 }
@@ -50,7 +73,7 @@ pub fn build_search_response(
     let searcher = index.reader.searcher();
     let schema = &index.schema;
 
-    let mut field_set = HashSet::new();
+    let mut field_set = IndexSet::new();
     for field in &req.select {
         if field == "*" {
             field_set.extend(index.schema.idx_by_name.keys());
@@ -58,9 +81,11 @@ pub fn build_search_response(
             field_set.insert(field);
         }
     }
-    let mut fields = Vec::new();
+    let mut rows = Vec::with_capacity(top_docs.len());
 
     for &(_, addr) in top_docs {
+        let mut fields = Vec::with_capacity(field_set.len());
+
         let doc: HashMap<Field, OwnedValue> = searcher
             .doc(addr)
             .map_err(|e| Status::internal(format!("Failed to retrieve document: {e}")))?;
@@ -101,45 +126,56 @@ pub fn build_search_response(
         }
 
         for func in &req.functions {
-            let expr = Expr::parse(func).into_result().map_err(|errs| {
-                anyhow!(
-                    "Failed to parse function: {}",
-                    errs.into_iter()
-                        .map(|e| e.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            })?;
-
-            let program = Program::compile_expr(expr);
-
-            let ctx = program
-                .ops
-                .iter()
-                .filter_map(|op| match op {
-                    OpCode::PushVariable(name) => Some(name.clone()),
-                    _ => None,
-                })
-                .flat_map(|field_name| schema.get_idx(&field_name).map(|field| (field_name, field)))
-                .flat_map(|(field_name, field)| {
-                    doc.get(&field)
-                        .ok_or(anyhow!(
-                            "Cannot handle null value for column: {:?}",
-                            field_name
-                        ))
-                        .and_then(|v: &OwnedValue| owned_val_as_f64(v).map(|f64| (field_name, f64)))
-                })
-                .collect::<HashMap<String, f64>>();
-
+            let program = parse_and_compile_program(func)?;
+            let ctx = build_context(&program, &doc, schema)?;
             let result = evaluation::execute(&program, &ctx).map(|v| SearchField {
                 name: func.to_string(),
                 value: Double(v),
             })?;
             fields.push(result);
         }
+        rows.push(api::Row { fields });
     }
+    Ok(api::SearchResponse { rows })
+}
 
-    Ok(api::SearchResponse { fields })
+fn parse_and_compile_program(func: &str) -> Result<Program> {
+    let expr = Expr::parse(func).into_result().map_err(|errs| {
+        anyhow!(
+            "Failed to parse function: {}",
+            errs.into_iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })?;
+    Ok(Program::compile_expr(expr))
+}
+
+fn build_context(
+    program: &Program,
+    doc: &HashMap<Field, OwnedValue>,
+    schema: &MetaSchema,
+) -> Result<HashMap<String, f64>> {
+    program
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            OpCode::PushVariable(name) => Some(name.clone()),
+            _ => None,
+        })
+        .flat_map(|field_name| {
+            schema
+                .get_idx(&field_name)
+                .ok()
+                .map(|field| (field_name, field))
+        })
+        .map(|(field_name, field)| {
+            doc.get(&field)
+                .ok_or_else(|| anyhow!("Cannot handle null value for column: {field_name}"))
+                .and_then(|v| owned_val_as_f64(v).map(|f| (field_name, f)))
+        })
+        .collect()
 }
 
 // pub fn build_matrix_response(

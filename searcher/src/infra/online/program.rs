@@ -2,12 +2,12 @@ use crate::infra::online::parsing::Expr;
 
 use super::parsing::{BinaryOp, UnaryOp};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program {
     pub ops: Vec<OpCode>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OpCode {
     PushNumber(f64),
     PushVariable(String),
