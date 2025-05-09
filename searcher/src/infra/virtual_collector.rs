@@ -20,21 +20,20 @@ pub struct VirtualFieldSegmentCollector {
     pub program: Program,
     pub searcher: tantivy::Searcher,
     pub schema: corelib::model::MetaSchema,
-    pub limit: usize,
-    pub offset: usize,
-    pub buffer: BinaryHeap<ScoredDoc>,
     pub segment_ordinal: SegmentOrdinal,
+    pub docs: Vec<ScoredDoc>,
 }
 
 #[derive(Debug, PartialEq)]
-struct ScoredDoc {
-    sort_value: f64,
+pub struct ScoredDoc {
+    sort_value: f32,
     doc: DocAddress,
 }
 
 impl Eq for ScoredDoc {}
 
 impl Ord for ScoredDoc {
+    // reverce order for heap
     fn cmp(&self, other: &Self) -> Ordering {
         other.sort_value.total_cmp(&self.sort_value)
     }
@@ -47,7 +46,7 @@ impl PartialOrd for ScoredDoc {
 }
 
 impl<'a> Collector for SortByVirtualFieldCollector<'a> {
-    type Fruit = Vec<(f64, DocAddress)>;
+    type Fruit = Vec<(f32, DocAddress)>;
     type Child = VirtualFieldSegmentCollector;
 
     fn requires_scoring(&self) -> bool {
@@ -64,10 +63,8 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
             program: self.program.clone(),
             searcher,
             schema: self.index.schema.clone(),
-            limit: self.limit,
-            offset: self.offset,
-            buffer: BinaryHeap::with_capacity(self.limit + self.offset),
             segment_ordinal,
+            docs: Vec::new(),
         })
     }
 
@@ -75,16 +72,28 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
         &self,
         segment_fruits: Vec<<Self::Child as SegmentCollector>::Fruit>,
     ) -> tantivy::Result<Self::Fruit> {
-        let mut combined: Vec<(f64, DocAddress)> = segment_fruits.into_iter().flatten().collect();
-        combined.sort_by(|a, b| b.0.total_cmp(&a.0));
-        combined.drain(0..self.offset.min(combined.len()));
-        combined.truncate(self.limit);
-        Ok(combined)
+        let mut heap = BinaryHeap::<ScoredDoc>::with_capacity(self.limit + self.offset + 1);
+
+        for scored_doc in segment_fruits.into_iter().flatten() {
+            heap.push(scored_doc);
+            if heap.len() > self.limit + self.offset {
+                heap.pop();
+            }
+        }
+
+        let results = heap
+            .into_sorted_vec()
+            .into_iter()
+            .skip(self.offset)
+            .take(self.limit)
+            .map(|sd| (sd.sort_value, sd.doc))
+            .collect();
+        Ok(results)
     }
 }
 
 impl SegmentCollector for VirtualFieldSegmentCollector {
-    type Fruit = Vec<(f64, DocAddress)>;
+    type Fruit = Vec<ScoredDoc>;
 
     fn collect(&mut self, doc: DocId, _score: Score) {
         let doc_addr = DocAddress::new(self.segment_ordinal, doc);
@@ -116,18 +125,14 @@ impl SegmentCollector for VirtualFieldSegmentCollector {
         };
 
         if let Ok(value) = eval_program(&self.program, &ctx) {
-            self.buffer.push(ScoredDoc {
-                sort_value: value,
+            self.docs.push(ScoredDoc {
+                sort_value: value as f32,
                 doc: doc_addr,
             });
         }
     }
 
     fn harvest(self) -> Self::Fruit {
-        self.buffer
-            .into_sorted_vec()
-            .into_iter()
-            .map(|sd| (sd.sort_value, sd.doc))
-            .collect()
+        self.docs
     }
 }

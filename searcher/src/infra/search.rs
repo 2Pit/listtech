@@ -3,7 +3,6 @@ use corelib::api::MetaColumnType;
 use corelib::model::MetaSchema;
 use indexmap::IndexSet;
 use std::collections::HashMap;
-use tantivy::collector;
 use tantivy::query::QueryParser;
 use tantivy::{
     DocAddress, Score,
@@ -11,6 +10,7 @@ use tantivy::{
     schema::{Field, OwnedValue},
 };
 use tonic::Status;
+use tracing::info;
 
 use crate::api::SearchValue::*;
 use crate::api::{self, SearchField};
@@ -36,8 +36,9 @@ pub fn execute_search(
         .parse_query(&req.filter)
         .map_err(|e| Status::invalid_argument(format!("Invalid query: {e}")))?;
 
-    let top_docs = match &req.search {
+    let top_docs = match &req.sort {
         Some(sort_func) => {
+            info!("USED sort_func");
             let program = parse_and_compile_program(&sort_func)
                 .map_err(|e| Status::internal(format!("Search failed: {e}")))?;
 
@@ -50,10 +51,10 @@ pub fn execute_search(
 
             searcher
                 .search(&query, &collector)
-                .map(|res| res.into_iter().map(|(s, d)| (s as f32, d)).collect())
                 .map_err(|e| Status::internal(format!("Search failed: {e}")))?
         }
         None => {
+            info!("TOP_N sort");
             let collector = TopDocs::with_limit(req.limit).and_offset(req.offset);
 
             searcher

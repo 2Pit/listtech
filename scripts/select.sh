@@ -10,8 +10,8 @@ curl -X POST "$SEARCHER_URL/v1/select" \
   -d '{
     "select": ["title", "timestamp_creation_ms"],
     "filter": "*",
-    "functions": ["sqrt(timestamp_creation_ms)"],
+    "functions": ["timestamp_creation_ms+10"],
     "from": "electronics",
-    "sort": "sqrt(timestamp_creation_ms)",
+    "sort": "timestamp_creation_ms+10",
     "limit": 20
     }' | jq

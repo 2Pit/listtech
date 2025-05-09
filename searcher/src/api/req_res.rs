@@ -8,7 +8,7 @@ pub struct SearchRequest {
     pub filter: String,
 
     #[serde(default)]
-    pub search: Option<String>,
+    pub sort: Option<String>,
 
     #[serde(default)]
     pub functions: Vec<String>,
