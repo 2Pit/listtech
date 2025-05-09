@@ -46,7 +46,7 @@ pub fn execute_search(
                 limit: req.limit,
                 offset: req.offset,
                 program,
-                index,
+                schema: &index.schema,
             };
 
             searcher

@@ -192,7 +192,7 @@ pub fn create_tantivy_schema_from_api(api_schema: &api::MetaSchema) -> tantivy::
                     opt = opt | DateOptions::from(INDEXED)
                 };
                 if is_sort_range {
-                    opt = opt | DateOptions::from(FAST)
+                    opt = opt | DateOptions::from(FAST);
                 };
                 schema_builder.add_date_field(&api_col.name, opt);
             }

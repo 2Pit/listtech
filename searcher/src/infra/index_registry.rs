@@ -28,12 +28,13 @@ pub async fn load_all_indexes(repo_path: &Path) -> Result<IndexRegistry> {
         let index_path = schema_path.join("index");
 
         match SearchIndex::open_from_path(index_path.to_str().unwrap()) {
+            // match SearchIndex::open_from_path_to_ram(index_path.to_str().unwrap()) {
             Ok(search_index) => {
                 registry.insert(schema_name.clone(), Arc::new(search_index));
                 tracing::info!(%schema_name, "Loaded search index");
             }
             Err(e) => {
-                tracing::warn!(%schema_name, error = ?e, "Failed to load search index");
+                tracing::error!(%schema_name, error = ?e, "Failed to load search index");
             }
         }
     }
