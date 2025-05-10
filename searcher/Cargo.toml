@@ -31,7 +31,6 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 
 # Вспомогательные инструменты
-include_dir = { workspace = true }
 dotenvy = { workspace = true }
 tantivy = { workspace = true }
 chrono.workspace = true

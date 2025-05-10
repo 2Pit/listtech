@@ -5,8 +5,6 @@ edition = "2024"
 
 [dependencies]
 axum.workspace = true
-include_dir.workspace = true
-mime_guess.workspace = true
 tantivy.workspace = true
 derive_more = { workspace = true, features = ["full"] }
 
