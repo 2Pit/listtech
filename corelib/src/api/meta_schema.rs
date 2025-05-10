@@ -35,7 +35,7 @@ impl MetaSchema {
         Ok(schema)
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, Display, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum MetaColumnType {
     // value types (zero_indexed)

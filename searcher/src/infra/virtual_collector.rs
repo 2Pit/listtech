@@ -1,30 +1,30 @@
 use crate::infra::online::evaluation::execute as eval_program;
 use crate::infra::online::program::{OpCode, Program};
-use corelib::model;
+use corelib::{api, model::MetaSchema};
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use tantivy::collector::{Collector, SegmentCollector};
 use tantivy::{DocAddress, DocId, Score, SegmentOrdinal, SegmentReader};
+use tracing::debug;
 
 pub struct SortByVirtualFieldCollector<'a> {
     pub limit: usize,
     pub offset: usize,
     pub program: Program,
-    pub schema: &'a model::MetaSchema,
+    pub schema: &'a MetaSchema,
 }
 
 pub struct VirtualFieldSegmentCollector {
     pub program: Program,
-    pub field_map: Vec<(String, Box<dyn Fn(DocId) -> f32 + Send + Sync>)>,
     pub segment_ordinal: SegmentOrdinal,
+    pub field_readers: Vec<(usize, FieldReader)>,
     pub doc_ids: Vec<DocId>,
     pub max_docs: usize,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ScoredDoc {
-    sort_value: f32,
-    doc: DocAddress,
+    pub sort_value: f32,
+    pub doc: DocAddress,
 }
 
 impl Eq for ScoredDoc {}
@@ -54,72 +54,48 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
         segment_ordinal: SegmentOrdinal,
         segment: &SegmentReader,
     ) -> tantivy::Result<Self::Child> {
-        let mut field_map = Vec::new();
+        let mut field_readers = Vec::with_capacity(self.program.env.len());
 
-        for op in &self.program.ops {
-            if let OpCode::PushVariable(name) = op {
-                let column = self.schema.get_column(name).map_err(|e| {
-                    tantivy::TantivyError::InvalidArgument(format!(
-                        "Unknown column '{}': {}",
-                        name, e
-                    ))
-                })?;
+        for (var_idx, var_name) in self.program.env.iter().enumerate() {
+            let column = self.schema.get_column(var_name).map_err(|e| {
+                tantivy::TantivyError::InvalidArgument(format!("Unknown column `{var_name}`: {e}"))
+            })?;
 
-                let reader_fn: Box<dyn Fn(DocId) -> f32 + Send + Sync> = match column.column_type {
-                    corelib::api::MetaColumnType::DateTime => {
-                        let reader = segment.fast_fields().date(name)?;
-                        Box::new(move |doc_id| {
-                            reader
-                                .values_for_doc(doc_id)
-                                .next()
-                                .map(|dt| dt.into_timestamp_millis() as f32)
-                                .unwrap_or(0.0)
-                        })
-                    }
-                    corelib::api::MetaColumnType::Double => {
-                        let reader = segment.fast_fields().f64(name)?;
-                        Box::new(move |doc_id| {
-                            reader.values_for_doc(doc_id).next().unwrap_or(0.0) as f32
-                        })
-                    }
-                    corelib::api::MetaColumnType::Long => {
-                        let reader = segment.fast_fields().i64(name)?;
-                        Box::new(move |doc_id| {
-                            reader.values_for_doc(doc_id).next().unwrap_or(0) as f32
-                        })
-                    }
-                    corelib::api::MetaColumnType::Ulong => {
-                        let reader = segment.fast_fields().u64(name)?;
-                        Box::new(move |doc_id| {
-                            reader.values_for_doc(doc_id).next().unwrap_or(0) as f32
-                        })
-                    }
-                    corelib::api::MetaColumnType::Bool => {
-                        let reader = segment.fast_fields().bool(name)?;
-                        Box::new(move |doc_id| {
-                            reader
-                                .values_for_doc(doc_id)
-                                .next()
-                                .map(|b| if b { 1.0 } else { 0.0 })
-                                .unwrap_or(0.0)
-                        })
-                    }
-                    _ => {
-                        return Err(tantivy::TantivyError::InvalidArgument(format!(
-                            "Field '{}' has unsupported type for scoring: {:?}",
-                            name, column.column_type
-                        )));
-                    }
-                };
+            debug!(
+                index = var_idx,
+                column_name = %var_name,
+                ?column.column_type,
+                "Preparing fast field reader"
+            );
 
-                field_map.push((name.clone(), reader_fn));
-            }
+            let reader = match column.column_type {
+                api::MetaColumnType::DateTime => {
+                    let col = segment.fast_fields().date(var_name)?;
+                    FieldReader::Date(col)
+                }
+                api::MetaColumnType::Double => {
+                    let col = segment.fast_fields().f64(var_name)?;
+                    FieldReader::F64(col)
+                }
+                api::MetaColumnType::Bool => {
+                    let col = segment.fast_fields().bool(var_name)?;
+                    FieldReader::Bool(col)
+                }
+                other => {
+                    return Err(tantivy::TantivyError::InvalidArgument(format!(
+                        "Unsupported fast field type in virtual sort: {:?}",
+                        other
+                    )));
+                }
+            };
+
+            field_readers.push((var_idx, reader));
         }
 
         Ok(VirtualFieldSegmentCollector {
             program: self.program.clone(),
-            field_map,
             segment_ordinal,
+            field_readers,
             doc_ids: Vec::new(),
             max_docs: self.offset + self.limit,
         })
@@ -153,34 +129,58 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
 impl SegmentCollector for VirtualFieldSegmentCollector {
     type Fruit = Vec<ScoredDoc>;
 
-    fn collect(&mut self, doc: DocId, _score: Score) {
-        self.doc_ids.push(doc);
+    fn collect(&mut self, doc_id: DocId, _score: Score) {
+        self.doc_ids.push(doc_id);
     }
 
-    fn harvest(self) -> Self::Fruit {
-        let mut docs = Vec::with_capacity(self.doc_ids.len());
-        let mut ctx = HashMap::with_capacity(self.field_map.len());
+    fn harvest(self) -> Vec<ScoredDoc> {
+        let mut results = Vec::with_capacity(self.doc_ids.len());
+        let mut ctx = vec![0.0f32; self.program.env.len()];
 
-        for &doc_id in &self.doc_ids {
-            ctx.clear();
-            for (name, reader_fn) in &self.field_map {
-                let val = reader_fn(doc_id);
-                ctx.insert(name.clone(), val as f64); // keep f64 for eval_program compatibility
+        for doc_id in self.doc_ids {
+            // читаем все значения из fastfield'ов
+            for &(var_idx, ref reader) in &self.field_readers {
+                ctx[var_idx] = reader.read_f32(doc_id);
             }
 
             if let Ok(score) = eval_program(&self.program, &ctx) {
-                docs.push(ScoredDoc {
-                    sort_value: score as f32,
+                results.push(ScoredDoc {
+                    sort_value: score,
                     doc: DocAddress::new(self.segment_ordinal, doc_id),
                 });
             }
         }
 
-        if docs.len() > self.max_docs {
-            docs.select_nth_unstable_by(self.max_docs, ScoredDoc::cmp);
-            docs.truncate(self.max_docs);
+        // отсекаем лишнее
+        if results.len() > self.max_docs {
+            results.select_nth_unstable_by(self.max_docs, ScoredDoc::cmp);
+            results.truncate(self.max_docs);
         }
 
-        docs
+        results
+    }
+}
+
+pub enum FieldReader {
+    Date(tantivy::fastfield::Column<tantivy::DateTime>),
+    F64(tantivy::fastfield::Column<f64>),
+    Bool(tantivy::fastfield::Column<bool>),
+}
+
+impl FieldReader {
+    pub fn read_f32(&self, doc_id: DocId) -> f32 {
+        match self {
+            FieldReader::Date(col) => col
+                .values_for_doc(doc_id)
+                .next()
+                .map(|dt| dt.into_timestamp_millis() as f32)
+                .unwrap_or(0.0),
+            FieldReader::F64(col) => col.values_for_doc(doc_id).next().unwrap_or(0.0) as f32,
+            FieldReader::Bool(col) => col
+                .values_for_doc(doc_id)
+                .next()
+                .map(|b| if b { 1.0 } else { 0.0 })
+                .unwrap_or(0.0),
+        }
     }
 }

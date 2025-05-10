@@ -4,7 +4,7 @@ use chumsky::error::Simple;
 
 #[derive(Debug)]
 pub enum Expr {
-    Number(f64),
+    Number(f32),
     Variable(String),
     FunctionCall {
         name: String,
@@ -54,7 +54,7 @@ fn build_parser<'a>() -> impl Parser<'a, &'a str, Expr, extra::Err<Simple<'a, ch
                     s.push('.');
                     s.push_str(&frac);
                 }
-                Expr::Number(s.parse::<f64>().unwrap())
+                Expr::Number(s.parse::<f32>().unwrap())
             })
             .padded();
 

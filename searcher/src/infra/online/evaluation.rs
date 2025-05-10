@@ -1,19 +1,18 @@
-use crate::infra::online::program::*;
-use anyhow::Result;
-use anyhow::anyhow;
-use std::collections::{HashMap, VecDeque};
+use crate::infra::online::program::{OpCode, Program};
+use anyhow::{Result, anyhow};
+use std::collections::VecDeque;
 
-pub fn execute(program: &Program, ctx: &HashMap<String, f64>) -> Result<f64> {
-    let mut stack: VecDeque<f64> = VecDeque::new();
+pub fn execute(program: &Program, ctx: &[f32]) -> Result<f32> {
+    let mut stack: VecDeque<f32> = VecDeque::new();
 
     for op in &program.ops {
         match op {
             OpCode::PushNumber(n) => stack.push_back(*n),
 
-            OpCode::PushVariable(name) => {
+            OpCode::PushVariable(idx) => {
                 let value = ctx
-                    .get(name)
-                    .ok_or_else(|| anyhow!("Unknown variable: {name}"))?;
+                    .get(*idx)
+                    .ok_or_else(|| anyhow!("Variable index out of bounds: {}", idx))?;
                 stack.push_back(*value);
             }
 

@@ -14,7 +14,7 @@ use tracing::info;
 
 use crate::api::SearchValue::*;
 use crate::api::{self, SearchField};
-use crate::domain::document::{map_owned_value, owned_val_as_f64};
+use crate::domain::document::{map_owned_value, owned_val_as_f32};
 use crate::infra::index::SearchIndex;
 
 use super::online::evaluation;
@@ -126,15 +126,15 @@ pub fn build_search_response(
             fields.push(value);
         }
 
-        for func in &req.functions {
-            let program = parse_and_compile_program(func)?;
-            let ctx = build_context(&program, &doc, schema)?;
-            let result = evaluation::execute(&program, &ctx).map(|v| SearchField {
-                name: func.to_string(),
-                value: Double(v),
-            })?;
-            fields.push(result);
-        }
+        // for func in &req.functions {
+        //     let program = parse_and_compile_program(func)?;
+        //     let ctx = build_context(&program, &doc, schema)?;
+        //     let result = evaluation::execute(&program, &ctx).map(|v| SearchField {
+        //         name: func.to_string(),
+        //         value: Double(v as f64),
+        //     })?;
+        //     fields.push(result);
+        // }
         rows.push(api::Row { fields });
     }
     Ok(api::SearchResponse { rows })
@@ -153,31 +153,31 @@ fn parse_and_compile_program(func: &str) -> Result<Program> {
     Ok(Program::compile_expr(expr))
 }
 
-fn build_context(
-    program: &Program,
-    doc: &HashMap<Field, OwnedValue>,
-    schema: &MetaSchema,
-) -> Result<HashMap<String, f64>> {
-    program
-        .ops
-        .iter()
-        .filter_map(|op| match op {
-            OpCode::PushVariable(name) => Some(name.clone()),
-            _ => None,
-        })
-        .flat_map(|field_name| {
-            schema
-                .get_idx(&field_name)
-                .ok()
-                .map(|field| (field_name, field))
-        })
-        .map(|(field_name, field)| {
-            doc.get(&field)
-                .ok_or_else(|| anyhow!("Cannot handle null value for column: {field_name}"))
-                .and_then(|v| owned_val_as_f64(v).map(|f| (field_name, f)))
-        })
-        .collect()
-}
+// fn build_context(
+//     program: &Program,
+//     doc: &HashMap<Field, OwnedValue>,
+//     schema: &MetaSchema,
+// ) -> Result<HashMap<String, f32>> {
+//     program
+//         .ops
+//         .iter()
+//         .filter_map(|op| match op {
+//             OpCode::PushVariable(name) => Some(name.clone()),
+//             _ => None,
+//         })
+//         .flat_map(|field_name| {
+//             schema
+//                 .get_idx(&field_name)
+//                 .ok()
+//                 .map(|field| (field_name, field))
+//         })
+//         .map(|(field_name, field)| {
+//             doc.get(&field)
+//                 .ok_or_else(|| anyhow!("Cannot handle null value for column: {field_name}"))
+//                 .and_then(|v| owned_val_as_f32(v).map(|f| (field_name, f)))
+//         })
+//         .collect()
+// }
 
 // pub fn build_matrix_response(
 //     index: &SearchIndex,

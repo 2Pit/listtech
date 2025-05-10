@@ -1,36 +1,46 @@
-use crate::infra::online::parsing::Expr;
+use super::parsing::{BinaryOp, Expr, UnaryOp};
 
-use super::parsing::{BinaryOp, UnaryOp};
+#[derive(Debug, Clone)]
+pub enum OpCode {
+    PushNumber(f32),
+    PushVariable(usize), // индекс в env
+    CallFunction { name: String, n_arg: usize },
+}
 
 #[derive(Debug, Clone)]
 pub struct Program {
     pub ops: Vec<OpCode>,
-}
-
-#[derive(Debug, Clone)]
-pub enum OpCode {
-    PushNumber(f64),
-    PushVariable(String),
-    CallFunction { name: String, n_arg: usize },
+    pub env: Vec<String>, // список переменных
 }
 
 impl Program {
-    pub fn compile_expr(expr: Expr) -> Program {
+    pub fn compile_expr(expr: Expr) -> Self {
         let mut ops = Vec::new();
-        Program::compile_expr_rec(expr, &mut ops);
-        Program { ops }
+        let mut env = Vec::new();
+        Self::compile_expr_rec(expr, &mut ops, &mut env);
+        Self { ops, env }
     }
 
-    fn compile_expr_rec(expr: Expr, ops: &mut Vec<OpCode>) {
+    fn compile_expr_rec(expr: Expr, ops: &mut Vec<OpCode>, env: &mut Vec<String>) {
         match expr {
             Expr::Number(n) => ops.push(OpCode::PushNumber(n)),
 
-            Expr::Variable(name) => ops.push(OpCode::PushVariable(name)),
+            Expr::Variable(name) => {
+                tracing::debug!(var = %name, "Compiling Expr::Variable");
+                let idx = match env.iter().position(|v| v == &name) {
+                    Some(i) => i,
+                    None => {
+                        env.push(name.clone());
+                        env.len() - 1
+                    }
+                };
+                ops.push(OpCode::PushVariable(idx));
+            }
 
             Expr::FunctionCall { name, args } => {
                 let args_len = args.len();
                 for arg in args {
-                    Program::compile_expr_rec(arg, ops);
+                    Self::compile_expr_rec(arg, ops, env);
                 }
                 ops.push(OpCode::CallFunction {
                     name,
@@ -39,7 +49,7 @@ impl Program {
             }
 
             Expr::UnaryOp { op, expr } => {
-                Program::compile_expr_rec(*expr, ops);
+                Self::compile_expr_rec(*expr, ops, env);
                 match op {
                     UnaryOp::Neg => {
                         ops.push(OpCode::PushNumber(-1.0));
@@ -52,8 +62,8 @@ impl Program {
             }
 
             Expr::BinaryOp { op, lhs, rhs } => {
-                Program::compile_expr_rec(*lhs, ops);
-                Program::compile_expr_rec(*rhs, ops);
+                Self::compile_expr_rec(*lhs, ops, env);
+                Self::compile_expr_rec(*rhs, ops, env);
                 let name = match op {
                     BinaryOp::Add => "+",
                     BinaryOp::Sub => "-",
