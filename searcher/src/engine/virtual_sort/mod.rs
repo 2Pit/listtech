@@ -1,10 +1,11 @@
-pub mod evaluation;
-pub mod parsing;
+pub mod collector;
+pub mod eval;
+pub mod expr;
 pub mod program;
 
 #[cfg(test)]
 mod tests {
-    use crate::infra::online::{evaluation::execute, parsing::Expr, program::Program};
+    use crate::engine::virtual_sort::{eval::execute, expr::Expr, program::Program};
 
     fn exec(src: &str, ctx_map: &[(&str, f32)]) -> f32 {
         let expr = Expr::parse(src).unwrap();

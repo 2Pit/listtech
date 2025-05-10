@@ -1,10 +1,11 @@
-use crate::infra::online::evaluation::execute as eval_program;
-use crate::infra::online::program::{OpCode, Program};
 use corelib::{api, model::MetaSchema};
 use std::cmp::Ordering;
 use tantivy::collector::{Collector, SegmentCollector};
 use tantivy::{DocAddress, DocId, Score, SegmentOrdinal, SegmentReader};
 use tracing::debug;
+
+use crate::engine::virtual_sort::eval::execute as eval_program;
+use crate::engine::virtual_sort::program::Program;
 
 pub struct SortByVirtualFieldCollector<'a> {
     pub limit: usize,

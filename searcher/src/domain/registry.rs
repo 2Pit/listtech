@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::infra::index::SearchIndex;
+use crate::domain::index::SearchIndex;
 
 #[derive(Clone)]
 pub struct IndexRegistry {

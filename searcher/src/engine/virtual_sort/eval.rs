@@ -1,4 +1,4 @@
-use crate::infra::online::program::{OpCode, Program};
+use crate::engine::virtual_sort::program::{OpCode, Program};
 use anyhow::{Result, anyhow};
 use std::collections::VecDeque;
 

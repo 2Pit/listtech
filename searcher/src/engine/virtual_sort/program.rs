@@ -1,4 +1,4 @@
-use super::parsing::{BinaryOp, Expr, UnaryOp};
+use crate::engine::virtual_sort::expr::{BinaryOp, Expr, UnaryOp};
 
 #[derive(Debug, Clone)]
 pub enum OpCode {

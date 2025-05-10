@@ -4,16 +4,16 @@ use corelib::model::{accept::Accept, typed_request::TypedRequest, typed_response
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-use crate::infra::search;
+use crate::engine::{response, search};
 use crate::{
     api,
-    infra::index_registry::{self, IndexRegistry},
+    domain::registry::{self, IndexRegistry},
 };
 
 /// Запуск HTTP API сервера
 pub async fn run_http_server(port: u16, index_registry_dir: String) -> Result<()> {
     let index_registry =
-        index_registry::load_all_indexes(std::path::Path::new(&index_registry_dir)).await?;
+        registry::load_all_indexes(std::path::Path::new(&index_registry_dir)).await?;
 
     // let index = SearchIndex::open_from_path(&index_dir)?;
     // let search_index = Arc::new(index);
@@ -56,7 +56,7 @@ pub async fn handle_search(
         }
     };
 
-    match search::build_search_response(&index, &top_docs, &req) {
+    match response::build_search_response(&index, &top_docs, &req) {
         Ok(response) => TypedResponse::ok(response, accept),
         Err(err) => {
             error!(?err, "Failed to build search response");

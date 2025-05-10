@@ -1,70 +1,19 @@
 use anyhow::{Result, anyhow};
 use corelib::api::MetaColumnType;
-use corelib::model::MetaSchema;
 use indexmap::IndexSet;
 use std::collections::HashMap;
-use tantivy::query::QueryParser;
 use tantivy::{
     DocAddress, Score,
-    collector::TopDocs,
     schema::{Field, OwnedValue},
 };
 use tonic::Status;
-use tracing::info;
 
 use crate::api::SearchValue::*;
 use crate::api::{self, SearchField};
-use crate::domain::document::{map_owned_value, owned_val_as_f32};
-use crate::infra::index::SearchIndex;
+use crate::domain::document::map_owned_value;
+use crate::domain::index::SearchIndex;
 
-use super::online::evaluation;
-use super::online::parsing::Expr;
-use super::online::program::{OpCode, Program};
-use super::virtual_collector::SortByVirtualFieldCollector;
-
-pub fn execute_search(
-    index: &SearchIndex,
-    req: &api::SearchRequest,
-) -> Result<Vec<(Score, DocAddress)>, Status> {
-    let searcher = index.reader.searcher();
-    // let schema = index.index.schema();
-
-    // let default_fields = index.schema.columns.iter().map(|c| c.idx).collect();
-    let default_fields = index.schema.get_full_text_col_idx();
-    let parser = QueryParser::for_index(&index.index, default_fields);
-    let query = parser
-        .parse_query(&req.filter)
-        .map_err(|e| Status::invalid_argument(format!("Invalid query: {e}")))?;
-
-    let top_docs = match &req.sort {
-        Some(sort_func) => {
-            info!("USED sort_func");
-            let program = parse_and_compile_program(&sort_func)
-                .map_err(|e| Status::internal(format!("Search failed: {e}")))?;
-
-            let collector = SortByVirtualFieldCollector {
-                limit: req.limit,
-                offset: req.offset,
-                program,
-                schema: &index.schema,
-            };
-
-            searcher
-                .search(&query, &collector)
-                .map_err(|e| Status::internal(format!("Search failed: {e}")))?
-        }
-        None => {
-            info!("TOP_N sort");
-            let collector = TopDocs::with_limit(req.limit).and_offset(req.offset);
-
-            searcher
-                .search(&query, &collector)
-                .map_err(|e| Status::internal(format!("Search failed: {e}")))?
-        }
-    };
-
-    Ok(top_docs)
-}
+// use super::virtual_sort::program::Program;
 
 pub fn build_search_response(
     index: &SearchIndex,
@@ -138,19 +87,6 @@ pub fn build_search_response(
         rows.push(api::Row { fields });
     }
     Ok(api::SearchResponse { rows })
-}
-
-fn parse_and_compile_program(func: &str) -> Result<Program> {
-    let expr = Expr::parse(func).into_result().map_err(|errs| {
-        anyhow!(
-            "Failed to parse function: {}",
-            errs.into_iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    })?;
-    Ok(Program::compile_expr(expr))
 }
 
 // fn build_context(

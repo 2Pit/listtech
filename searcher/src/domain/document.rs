@@ -1,6 +1,6 @@
 use crate::api;
 use crate::api::SearchValue::*;
-use anyhow::{Ok, Result, anyhow};
+// use anyhow::{Ok, Result, anyhow};
 
 use tantivy::schema::OwnedValue;
 
@@ -26,25 +26,25 @@ pub fn map_owned_value(field_name: &str, value: OwnedValue) -> api::SearchField 
     }
 }
 
-pub fn owned_val_as_f32(value: &OwnedValue) -> Result<f32> {
-    let value_enum = match value {
-        OwnedValue::U64(n) => *n as f32,
-        OwnedValue::I64(n) => *n as f32,
-        OwnedValue::F64(n) => *n as f32,
-        OwnedValue::Bool(b) => {
-            if *b {
-                1.0
-            } else {
-                0.0
-            }
-        }
-        OwnedValue::Date(dt) => dt.into_timestamp_millis() as f32,
+// pub fn owned_val_as_f32(value: &OwnedValue) -> Result<f32> {
+//     let value_enum = match value {
+//         OwnedValue::U64(n) => *n as f32,
+//         OwnedValue::I64(n) => *n as f32,
+//         OwnedValue::F64(n) => *n as f32,
+//         OwnedValue::Bool(b) => {
+//             if *b {
+//                 1.0
+//             } else {
+//                 0.0
+//             }
+//         }
+//         OwnedValue::Date(dt) => dt.into_timestamp_millis() as f32,
 
-        t => return Err(anyhow!("Cannot convert type to double {:?}", t)),
-    };
+//         t => return Err(anyhow!("Cannot convert type to double {:?}", t)),
+//     };
 
-    Ok(value_enum)
-}
+//     Ok(value_enum)
+// }
 
 fn tantivy_datetime_to_iso(dt: tantivy::DateTime) -> String {
     let micros = dt.into_timestamp_micros(); // Получаем i64 микросекунды
