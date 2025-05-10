@@ -15,7 +15,7 @@ pub struct SortByVirtualFieldCollector<'a> {
 
 pub struct VirtualFieldSegmentCollector {
     pub program: Program,
-    pub field_map: Vec<(String, Box<dyn Fn(DocId) -> f64 + Send + Sync>)>,
+    pub field_map: Vec<(String, Box<dyn Fn(DocId) -> f32 + Send + Sync>)>,
     pub segment_ordinal: SegmentOrdinal,
     pub doc_ids: Vec<DocId>,
     pub max_docs: usize,
@@ -58,15 +58,60 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
 
         for op in &self.program.ops {
             if let OpCode::PushVariable(name) = op {
-                let reader = segment.fast_fields().date(name)?;
-                let reader_fn: Box<dyn Fn(DocId) -> f64 + Send + Sync> =
-                    Box::new(move |doc_id: DocId| {
-                        reader
-                            .values_for_doc(doc_id)
-                            .next()
-                            .map(|dt| dt.into_timestamp_millis() as f64)
-                            .unwrap_or(0.0)
-                    });
+                let column = self.schema.get_column(name).map_err(|e| {
+                    tantivy::TantivyError::InvalidArgument(format!(
+                        "Unknown column '{}': {}",
+                        name, e
+                    ))
+                })?;
+
+                let reader_fn: Box<dyn Fn(DocId) -> f32 + Send + Sync> = match column.column_type {
+                    corelib::api::MetaColumnType::DateTime => {
+                        let reader = segment.fast_fields().date(name)?;
+                        Box::new(move |doc_id| {
+                            reader
+                                .values_for_doc(doc_id)
+                                .next()
+                                .map(|dt| dt.into_timestamp_millis() as f32)
+                                .unwrap_or(0.0)
+                        })
+                    }
+                    corelib::api::MetaColumnType::Double => {
+                        let reader = segment.fast_fields().f64(name)?;
+                        Box::new(move |doc_id| {
+                            reader.values_for_doc(doc_id).next().unwrap_or(0.0) as f32
+                        })
+                    }
+                    corelib::api::MetaColumnType::Long => {
+                        let reader = segment.fast_fields().i64(name)?;
+                        Box::new(move |doc_id| {
+                            reader.values_for_doc(doc_id).next().unwrap_or(0) as f32
+                        })
+                    }
+                    corelib::api::MetaColumnType::Ulong => {
+                        let reader = segment.fast_fields().u64(name)?;
+                        Box::new(move |doc_id| {
+                            reader.values_for_doc(doc_id).next().unwrap_or(0) as f32
+                        })
+                    }
+                    corelib::api::MetaColumnType::Bool => {
+                        let reader = segment.fast_fields().bool(name)?;
+                        Box::new(move |doc_id| {
+                            reader
+                                .values_for_doc(doc_id)
+                                .next()
+                                .map(|b| if b { 1.0 } else { 0.0 })
+                                .unwrap_or(0.0)
+                        })
+                    }
+                    _ => {
+                        return Err(tantivy::TantivyError::InvalidArgument(format!(
+                            "Field '{}' has unsupported type for scoring: {:?}",
+                            name, column.column_type
+                        )));
+                    }
+                };
+
                 field_map.push((name.clone(), reader_fn));
             }
         }
@@ -114,12 +159,13 @@ impl SegmentCollector for VirtualFieldSegmentCollector {
 
     fn harvest(self) -> Self::Fruit {
         let mut docs = Vec::with_capacity(self.doc_ids.len());
-
         let mut ctx = HashMap::with_capacity(self.field_map.len());
+
         for &doc_id in &self.doc_ids {
+            ctx.clear();
             for (name, reader_fn) in &self.field_map {
                 let val = reader_fn(doc_id);
-                ctx.insert(name.clone(), val);
+                ctx.insert(name.clone(), val as f64); // keep f64 for eval_program compatibility
             }
 
             if let Ok(score) = eval_program(&self.program, &ctx) {
@@ -128,7 +174,6 @@ impl SegmentCollector for VirtualFieldSegmentCollector {
                     doc: DocAddress::new(self.segment_ordinal, doc_id),
                 });
             }
-            ctx.clear();
         }
 
         if docs.len() > self.max_docs {
