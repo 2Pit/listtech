@@ -1,4 +1,3 @@
-use crate::infra::index::SearchIndex;
 use crate::infra::online::evaluation::execute as eval_program;
 use crate::infra::online::program::{OpCode, Program};
 use corelib::model;
@@ -18,7 +17,7 @@ pub struct VirtualFieldSegmentCollector {
     pub program: Program,
     pub field_map: Vec<(String, Box<dyn Fn(DocId) -> f64 + Send + Sync>)>,
     pub segment_ordinal: SegmentOrdinal,
-    pub docs: Vec<ScoredDoc>,
+    pub doc_ids: Vec<DocId>,
     pub max_docs: usize,
 }
 
@@ -76,7 +75,7 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
             program: self.program.clone(),
             field_map,
             segment_ordinal,
-            docs: Vec::new(),
+            doc_ids: Vec::new(),
             max_docs: self.offset + self.limit,
         })
     }
@@ -85,19 +84,19 @@ impl<'a> Collector for SortByVirtualFieldCollector<'a> {
         &self,
         segment_fruits: Vec<<Self::Child as SegmentCollector>::Fruit>,
     ) -> tantivy::Result<Self::Fruit> {
-        let mut docs: Vec<ScoredDoc> = segment_fruits.into_iter().flatten().collect();
+        let mut scored_docs: Vec<ScoredDoc> = segment_fruits.into_iter().flatten().collect();
         let cutoff = self.offset + self.limit;
 
-        if cutoff < docs.len() {
-            docs.select_nth_unstable_by(cutoff, ScoredDoc::cmp);
-            docs[..cutoff].sort_unstable_by(ScoredDoc::cmp);
-            Ok(docs[self.offset..cutoff]
+        if cutoff < scored_docs.len() {
+            scored_docs.select_nth_unstable_by(cutoff, ScoredDoc::cmp);
+            scored_docs[..cutoff].sort_unstable_by(ScoredDoc::cmp);
+            Ok(scored_docs[self.offset..cutoff]
                 .iter()
                 .map(|sd| (sd.sort_value, sd.doc))
                 .collect())
         } else {
-            docs.sort_unstable_by(ScoredDoc::cmp);
-            Ok(docs
+            scored_docs.sort_unstable_by(ScoredDoc::cmp);
+            Ok(scored_docs
                 .into_iter()
                 .skip(self.offset)
                 .map(|sd| (sd.sort_value, sd.doc))
@@ -110,28 +109,33 @@ impl SegmentCollector for VirtualFieldSegmentCollector {
     type Fruit = Vec<ScoredDoc>;
 
     fn collect(&mut self, doc: DocId, _score: Score) {
-        let doc_addr = DocAddress::new(self.segment_ordinal, doc);
-
-        let mut ctx = HashMap::with_capacity(self.field_map.len());
-        for (name, reader_fn) in &self.field_map {
-            let val = reader_fn(doc);
-            ctx.insert(name.clone(), val);
-        }
-
-        if let Ok(value) = eval_program(&self.program, &ctx) {
-            self.docs.push(ScoredDoc {
-                sort_value: value as f32,
-                doc: doc_addr,
-            });
-        }
+        self.doc_ids.push(doc);
     }
 
-    fn harvest(mut self) -> Self::Fruit {
-        if self.docs.len() > self.max_docs {
-            self.docs
-                .select_nth_unstable_by(self.max_docs, ScoredDoc::cmp);
-            self.docs.truncate(self.max_docs);
+    fn harvest(self) -> Self::Fruit {
+        let mut docs = Vec::with_capacity(self.doc_ids.len());
+
+        let mut ctx = HashMap::with_capacity(self.field_map.len());
+        for &doc_id in &self.doc_ids {
+            for (name, reader_fn) in &self.field_map {
+                let val = reader_fn(doc_id);
+                ctx.insert(name.clone(), val);
+            }
+
+            if let Ok(score) = eval_program(&self.program, &ctx) {
+                docs.push(ScoredDoc {
+                    sort_value: score as f32,
+                    doc: DocAddress::new(self.segment_ordinal, doc_id),
+                });
+            }
+            ctx.clear();
         }
-        self.docs
+
+        if docs.len() > self.max_docs {
+            docs.select_nth_unstable_by(self.max_docs, ScoredDoc::cmp);
+            docs.truncate(self.max_docs);
+        }
+
+        docs
     }
 }
