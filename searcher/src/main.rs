@@ -2,7 +2,6 @@ mod api;
 mod app;
 mod domain;
 mod engine;
-mod model;
 
 use crate::app::{api_server, swagger_server};
 use anyhow::Result;

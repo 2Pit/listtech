@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use dashmap::DashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::domain::index::SearchIndex;
@@ -9,7 +9,7 @@ use crate::domain::index::SearchIndex;
 #[derive(Clone)]
 pub struct IndexRegistry {
     pub inner: Arc<DashMap<String, Arc<SearchIndex>>>,
-    pub indexes_root: PathBuf,
+    // pub indexes_root: PathBuf,
 }
 
 pub async fn load_all_indexes(repo_path: &Path) -> Result<IndexRegistry> {
@@ -41,6 +41,6 @@ pub async fn load_all_indexes(repo_path: &Path) -> Result<IndexRegistry> {
 
     Ok(IndexRegistry {
         inner: registry,
-        indexes_root: repo_path.to_path_buf(),
+        // indexes_root: repo_path.to_path_buf(),
     })
 }
