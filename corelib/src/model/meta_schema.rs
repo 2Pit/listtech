@@ -13,7 +13,7 @@ pub struct MetaSchema {
     pub columns: Vec<MetaColumn>,
 
     pub id_column: MetaColumn,
-    pub idx_by_name: HashMap<String, Idx>,
+    pub icol_by_name: HashMap<String, usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -30,16 +30,11 @@ pub struct MetaColumn {
 }
 
 impl MetaSchema {
-    pub fn get_idx(&self, name: &str) -> Result<Idx> {
-        self.idx_by_name
+    pub fn get_column(&self, name: &str) -> Result<&MetaColumn> {
+        self.icol_by_name
             .get(name)
-            .map(|idx| idx.clone())
+            .and_then(|icol| self.columns.get(*icol))
             .ok_or(anyhow!("Unknown column name: {}", name))
-    }
-
-    pub fn get_column_type(&self, name: &str) -> Result<api::MetaColumnType> {
-        self.get_idx(name)
-            .map(|idx| self.columns[idx.field_id() as usize].column_type.clone())
     }
 
     // todo: cache
@@ -49,11 +44,6 @@ impl MetaSchema {
             .filter(|col| col.is_full_text)
             .map(|mc| mc.idx)
             .collect()
-    }
-
-    pub fn get_column(&self, name: &str) -> Result<&MetaColumn> {
-        self.get_idx(name)
-            .map(|idx| &self.columns[idx.field_id() as usize])
     }
 
     pub fn from_api(tantivy_schema: &TantivySchema, api_schema: api::MetaSchema) -> Result<Self> {
@@ -70,20 +60,24 @@ impl MetaSchema {
             .clone();
 
         let mut idx_by_name = HashMap::new();
-        for column in &columns {
-            idx_by_name.insert(column.name.clone(), column.idx);
+        for (icol, column) in columns.iter().enumerate() {
+            idx_by_name.insert(column.name.clone(), icol);
         }
 
         Ok(Self {
             name: api_schema.name,
             id_column,
             columns,
-            idx_by_name,
+            icol_by_name: idx_by_name,
         })
     }
 }
 
 impl MetaColumn {
+    pub fn is_not_nullable(&self) -> bool {
+        !self.is_nullable
+    }
+
     fn from_api(tantivy_schema: &TantivySchema, api_column: api::MetaColumn) -> Result<Self> {
         let idx = tantivy_schema.get_field(&api_column.name)?;
         let filed_entry = tantivy_schema.get_field_entry(idx);

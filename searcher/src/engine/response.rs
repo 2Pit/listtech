@@ -26,7 +26,7 @@ pub fn build_search_response(
     let mut field_set = IndexSet::new();
     for field in &req.select {
         if field == "*" {
-            field_set.extend(index.schema.idx_by_name.keys());
+            field_set.extend(index.schema.icol_by_name.keys());
         } else {
             field_set.insert(field);
         }
@@ -41,7 +41,7 @@ pub fn build_search_response(
             .map_err(|e| Status::internal(format!("Failed to retrieve document: {e}")))?;
 
         for &field_name in &field_set {
-            let field = schema.get_idx(field_name)?;
+            let field = schema.get_column(field_name).map(|col| col.idx)?;
             //.map_err(|e| {
             // Status::invalid_argument(format!("Invalid field name '{}': {}", field_name, e))
             // })?;

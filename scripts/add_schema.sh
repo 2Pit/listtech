@@ -22,10 +22,10 @@ read -r -d '' SCHEMA_JSON <<'EOF'
       { "name": "tech2", "column_type": "text", "modifiers": ["full_text", "nullable"] },
       { "name": "also_buy", "column_type": "text", "modifiers": ["nullable"] },
       { "name": "also_view", "column_type": "text", "modifiers": ["nullable"] },
-      { "name": "brand_string", "column_type": "text", "modifiers": ["full_text"] },
+      { "name": "brand_string", "column_type": "text", "modifiers": ["full_text", "nullable"] },
       { "name": "brand", "column_type": "tree", "modifiers": ["equals", "fast_sortable"] },
-      { "name": "rank_position", "column_type": "ulong", "modifiers": ["equals", "fast_sortable"] },
-      { "name": "rank_facet", "column_type": "tree", "modifiers": ["equals", "fast_sortable"] },
+      { "name": "rank_position", "column_type": "ulong", "modifiers": ["equals", "fast_sortable", "nullable"] },
+      { "name": "rank_facet", "column_type": "tree", "modifiers": ["equals", "fast_sortable", "nullable"] },
       { "name": "category", "column_type": "tree", "modifiers": ["equals", "fast_sortable"] },
       { "name": "image_url", "column_type": "text", "modifiers": ["nullable"] },
       { "name": "image_url_high_res", "column_type": "text", "modifiers": ["nullable"] }

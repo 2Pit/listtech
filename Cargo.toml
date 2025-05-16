@@ -36,6 +36,7 @@ chumsky = "0.10.1"
 derive_more = { version = "2.0.1", features = ["full"] }
 dashmap = "6.1.0"
 tower = "0.5.2"
+rand = "0.9.1"
 
 # dev-deps
 tempfile = "3"

@@ -19,6 +19,9 @@ async fn main() -> Result<()> {
     let file = File::open("data/meta_Electronics.json").context("cannot open input file")?;
     let reader = BufReader::new(file);
 
+    let mut n_succeed = 0;
+    let mut n_failed = 0;
+
     for (i, line) in reader.lines().enumerate() {
         // if i >= 5 {
         // break;
@@ -44,12 +47,16 @@ async fn main() -> Result<()> {
 
         let status = res.status();
         if !status.is_success() {
+            n_failed += 1;
             let text = res.text().await.unwrap_or_default();
             tracing::error!(line = i, status = %status, body = %text, "indexing failed");
         } else {
-            tracing::info!(line = i, "indexed");
+            n_succeed += 1;
+            tracing::debug!(line = i, "indexed");
         }
     }
+
+    tracing::error!("Succeed: {}\tFailed: {} indexed docs", n_succeed, n_failed);
 
     Ok(())
 }

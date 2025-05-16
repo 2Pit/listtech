@@ -1,5 +1,6 @@
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime};
 use indexer::api;
+use rand::Rng;
 
 pub struct FieldsBuilder<'a> {
     json: &'a serde_json::Value,
@@ -39,30 +40,63 @@ impl<'a> FieldsBuilder<'a> {
     }
 
     pub fn price(mut self) -> Self {
-        if let Some(price_str) = self.json.get("price").and_then(|v| v.as_str()) {
-            if let Ok(price) = price_str.trim_start_matches('$').parse::<f64>() {
-                self.fields.push(api::IndexableField {
-                    name: "price".to_string(),
-                    value: Some(api::FieldValue::Double(price)),
-                });
-            }
-        }
+        let maybe_price = self
+            .json
+            .get("price")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.trim_start_matches('$').parse::<f64>().ok());
+
+        let price = maybe_price.unwrap_or_else(|| {
+            let mut rng = rand::rng();
+            rng.random_range(1.0..=50.0)
+        });
+
+        self.fields.push(api::IndexableField {
+            name: "price".to_string(),
+            value: Some(api::FieldValue::Double(price)),
+        });
+
         self
     }
 
     pub fn date(mut self) -> Self {
-        if let Some(date_str) = self.json.get("date").and_then(|v| v.as_str()) {
-            if let Ok(date) = NaiveDate::parse_from_str(date_str, "%B %d, %Y") {
-                if let Some(ts) = date.and_hms_opt(0, 0, 0) {
-                    self.fields.push(api::IndexableField {
-                        name: "timestamp_creation_ms".to_string(),
-                        value: Some(api::FieldValue::DateTime(
-                            ts.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-                        )),
-                    });
-                }
+        let maybe_date = self
+            .json
+            .get("date")
+            .and_then(|v| v.as_str())
+            .and_then(|date_str| NaiveDate::parse_from_str(date_str, "%B %d, %Y").ok())
+            .and_then(|date| date.and_hms_opt(0, 0, 0));
+
+        let ts = match maybe_date {
+            Some(dt) => dt,
+            None => {
+                // Диапазон: 2018-01-01 00:00:00 ... 2019-01-01 00:00:00
+                let start = NaiveDate::from_ymd_opt(2018, 1, 1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_utc()
+                    .timestamp();
+                let end = NaiveDate::from_ymd_opt(2019, 1, 1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_utc()
+                    .timestamp();
+
+                let mut rng = rand::rng();
+                let random_ts = rng.random_range(start..end);
+                NaiveDateTime::from_timestamp_opt(random_ts, 0).unwrap()
             }
-        }
+        };
+
+        self.fields.push(api::IndexableField {
+            name: "timestamp_creation_ms".to_string(),
+            value: Some(api::FieldValue::DateTime(
+                ts.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            )),
+        });
+
         self
     }
 
