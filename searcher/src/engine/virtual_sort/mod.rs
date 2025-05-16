@@ -5,7 +5,7 @@ pub mod program;
 
 #[cfg(test)]
 mod tests {
-    use crate::engine::virtual_sort::{eval::execute, expr::Expr, program::Program};
+    use crate::engine::virtual_sort::{eval::eval_program, expr::Expr, program::Program};
 
     fn exec(src: &str, ctx_map: &[(&str, f32)]) -> f32 {
         let expr = Expr::parse(src).unwrap();
@@ -18,7 +18,7 @@ mod tests {
             ctx_values.push(*v);
         }
 
-        execute(&program, &ctx_values).unwrap()
+        eval_program(&program, &ctx_values).unwrap()
     }
 
     #[test]

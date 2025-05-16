@@ -37,6 +37,13 @@ impl Program {
                 ops.push(OpCode::PushVariable(idx));
             }
 
+            // Специальная обработка now_ms()
+            Expr::FunctionCall { ref name, ref args } if name == "now_ms" && args.is_empty() => {
+                let now_ms = chrono::Utc::now().timestamp_millis() as f32;
+                tracing::debug!(now_ms, "Replacing now_ms() with constant");
+                ops.push(OpCode::PushNumber(now_ms));
+            }
+
             Expr::FunctionCall { name, args } => {
                 let args_len = args.len();
                 for arg in args {

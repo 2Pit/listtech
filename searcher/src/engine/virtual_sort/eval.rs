@@ -1,8 +1,8 @@
 use crate::engine::virtual_sort::program::{OpCode, Program};
-use anyhow::{Result, anyhow};
+use anyhow::{Ok, Result, anyhow};
 use std::collections::VecDeque;
 
-pub fn execute(program: &Program, ctx: &[f32]) -> Result<f32> {
+pub fn eval_program(program: &Program, ctx: &[f32]) -> Result<f32> {
     let mut stack: VecDeque<f32> = VecDeque::new();
 
     for op in &program.ops {

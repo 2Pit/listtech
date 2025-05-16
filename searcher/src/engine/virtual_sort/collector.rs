@@ -4,7 +4,7 @@ use tantivy::collector::{Collector, SegmentCollector};
 use tantivy::{DocAddress, DocId, Score, SegmentOrdinal, SegmentReader};
 use tracing::debug;
 
-use crate::engine::virtual_sort::eval::execute as eval_program;
+use crate::engine::virtual_sort::eval::eval_program;
 use crate::engine::virtual_sort::program::Program;
 
 pub struct SortByVirtualFieldCollector<'a> {

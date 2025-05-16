@@ -12,6 +12,6 @@ curl -X POST "$SEARCHER_URL/v1/select" \
     "filter": "*",
     "functions": ["timestamp_creation_ms+10"],
     "from": "electronics",
-    "sort": "timestamp_creation_ms+10",
+    "sort": "-ln(price + 1) + 10 * exp(-0.01 * ((now_ms() - 202176000000 - timestamp_creation_ms) / 86400000))",
     "limit": 20
     }' | jq
