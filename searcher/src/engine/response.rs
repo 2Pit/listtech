@@ -58,7 +58,7 @@ pub fn build_search_response(
                             MetaColumnType::Long => NullableLong(None),
                             MetaColumnType::Double => NullableDouble(None),
                             MetaColumnType::DateTime => NullableDateTime(None),
-                            MetaColumnType::String => NullableStr(None),
+                            MetaColumnType::Text => NullableStr(None),
                             MetaColumnType::Bytes => NullableBytes(None),
                             MetaColumnType::Tree => NullableTree(None),
                         })

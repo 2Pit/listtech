@@ -60,7 +60,7 @@ impl MetaSchema {
         let columns: Vec<MetaColumn> = api_schema
             .columns
             .into_iter()
-            .map(|api_col| MetaColumn::from_api(api_col, tantivy_schema))
+            .map(|api_col| MetaColumn::from_api(tantivy_schema, api_col))
             .collect::<Result<Vec<_>>>()?;
 
         let id_column = columns
@@ -84,7 +84,7 @@ impl MetaSchema {
 }
 
 impl MetaColumn {
-    fn from_api(api_column: api::MetaColumn, tantivy_schema: &TantivySchema) -> Result<Self> {
+    fn from_api(tantivy_schema: &TantivySchema, api_column: api::MetaColumn) -> Result<Self> {
         let idx = tantivy_schema.get_field(&api_column.name)?;
         let filed_entry = tantivy_schema.get_field_entry(idx);
 

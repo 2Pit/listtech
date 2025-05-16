@@ -22,7 +22,6 @@ pub async fn run_http_server(port: u16, index_registry_dir: String) -> Result<()
     let addr = format!("0.0.0.0:{port}");
 
     // Читаем индекс
-    info!("Opening search index at './data/index'");
     let index_registry =
         index_registry::load_all_indexes(std::path::Path::new(&index_registry_dir)).await?;
 

@@ -46,9 +46,9 @@ pub enum MetaColumnType {
     DateTime, // 0 => 0 epoch
 
     // object types
-    String, // 0 => ""
-    Bytes,  // 0 => []
-    Tree,   // 0 => ["/"]
+    Text,  // 0 => ""
+    Bytes, // 0 => []
+    Tree,  // 0 => ["/"]
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

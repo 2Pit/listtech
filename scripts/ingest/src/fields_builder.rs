@@ -18,7 +18,7 @@ impl<'a> FieldsBuilder<'a> {
         if let Some(s) = self.json.get(name).and_then(|v| v.as_str()) {
             self.fields.push(api::IndexableField {
                 name: name.to_string(),
-                value: Some(api::FieldValue::String(s.to_string())),
+                value: Some(api::FieldValue::Text(s.to_string())),
             });
         }
         self
@@ -33,7 +33,7 @@ impl<'a> FieldsBuilder<'a> {
             .unwrap_or("");
         self.fields.push(api::IndexableField {
             name: name.to_string(),
-            value: Some(api::FieldValue::String(val.to_string())),
+            value: Some(api::FieldValue::Text(val.to_string())),
         });
         self
     }
@@ -124,7 +124,7 @@ impl<'a> FieldsBuilder<'a> {
 
     pub fn build(self) -> Vec<api::IndexableField> {
         for f in &self.fields {
-            if let Some(api::FieldValue::String(ref s)) = f.value {
+            if let Some(api::FieldValue::Text(ref s)) = f.value {
                 if s.len() > 65530 {
                     tracing::warn!(field = %f.name, len = s.len(), value = %s, "String too long");
                 }

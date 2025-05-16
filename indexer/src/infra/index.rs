@@ -22,9 +22,9 @@ pub struct IndexState {
 impl IndexState {
     pub async fn init_index_state(
         registry: &IndexRegistry,
-        schema: &api::MetaSchema,
+        api_schema: &api::MetaSchema,
     ) -> anyhow::Result<IndexState> {
-        let schema_name = &schema.name;
+        let schema_name = &api_schema.name;
         let index_path = registry.indexes_root.join(schema_name).join("index");
 
         // Создание директорий, если не существует
@@ -32,22 +32,18 @@ impl IndexState {
             .await
             .with_context(|| format!("Failed to create index directory: {:?}", index_path))?;
 
-        IndexState::create_index_state(schema.clone(), index_path.to_str().unwrap()).await
+        let index_dir = index_path.to_str().unwrap();
+        IndexState::write_schema_file(api_schema, index_dir).await?;
+        IndexState::create_index_state(api_schema.clone(), index_dir).await
     }
 
-    pub async fn create_index_state(
-        api_schema: api::MetaSchema,
-        index_dir: &str,
-    ) -> Result<IndexState> {
+    async fn write_schema_file(schema: &api::MetaSchema, dir: &str) -> Result<()> {
         use tokio::io::AsyncWriteExt;
 
-        let tantivy_schema = create_tantivy_schema_from_api(&api_schema);
-        let index = Index::create_in_dir(Path::new(index_dir), tantivy_schema)?;
+        let schema_json =
+            serde_json::to_vec_pretty(schema).context("Failed to serialize MetaSchema to JSON")?;
 
-        let schema_json = serde_json::to_vec_pretty(&api_schema)
-            .context("Failed to serialize MetaSchema to JSON")?;
-
-        let delta_path = Path::new(index_dir).join("delta_schema.json");
+        let delta_path = Path::new(dir).join("delta_schema.json");
         let mut file = tokio::fs::File::create(&delta_path)
             .await
             .with_context(|| format!("Failed to create schema file: {:?}", delta_path))?;
@@ -56,6 +52,15 @@ impl IndexState {
             .await
             .context("Failed to write schema to file")?;
 
+        Ok(())
+    }
+
+    pub async fn create_index_state(
+        api_schema: api::MetaSchema,
+        index_dir: &str,
+    ) -> Result<IndexState> {
+        let tantivy_schema = create_tantivy_schema_from_api(&api_schema);
+        let index = Index::create_in_dir(Path::new(index_dir), tantivy_schema)?;
         let meta_schema = MetaSchema::from_api(&index.schema(), api_schema)?;
         let writer = Self::init_writer(&index).await?;
 
@@ -120,7 +125,7 @@ impl IndexState {
             .ok_or_else(|| anyhow::anyhow!("ID not found"))
             .and_then(|field| field.value.ok_or_else(|| anyhow::anyhow!("ID is null")))
             .and_then(|id_value| match id_value {
-                api::FieldValue::String(id) => Ok(Term::from_field_text(
+                api::FieldValue::Text(id) => Ok(Term::from_field_text(
                     self.schema.id_column.idx,
                     id.as_str(),
                 )),
@@ -196,7 +201,7 @@ pub fn create_tantivy_schema_from_api(api_schema: &api::MetaSchema) -> tantivy::
                 };
                 schema_builder.add_date_field(&api_col.name, opt);
             }
-            api::MetaColumnType::String => {
+            api::MetaColumnType::Text => {
                 let mut opt = TextOptions::from(STORED);
                 if is_eq {
                     opt = opt | TextOptions::from(STRING)

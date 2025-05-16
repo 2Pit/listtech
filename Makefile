@@ -8,4 +8,4 @@ run:
 		attach
 
 ingest:
-	cargo run -p ingest
+	cargo run -p ingest --release

@@ -1,18 +1,23 @@
-use crate::api;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use corelib::model::meta_schema::MetaSchema;
+use std::collections::HashSet;
 use tantivy::TantivyError;
 use tantivy::schema::document::TantivyDocument;
 
+use crate::api;
+use crate::api::FieldValue::*;
+
+#[tracing::instrument]
 pub fn to_tantivy_doc(meta_schema: &MetaSchema, doc: &api::Document) -> Result<TantivyDocument> {
     let mut compact_doc = TantivyDocument::new();
+    let mut indexed_fields = HashSet::new();
 
     for field in &doc.fields {
         let field_name = &field.name;
         let idx = meta_schema.get_idx(field_name)?;
 
         if let Some(ref value) = field.value {
-            use api::FieldValue::*;
+            indexed_fields.insert(field_name.clone());
 
             let colunm_type = meta_schema.get_column_type(field_name)?;
 
@@ -21,7 +26,7 @@ pub fn to_tantivy_doc(meta_schema: &MetaSchema, doc: &api::Document) -> Result<T
                 (Long(i), api::MetaColumnType::Long) => compact_doc.add_i64(idx, *i),
                 (Ulong(u), api::MetaColumnType::Ulong) => compact_doc.add_u64(idx, *u),
                 (Double(f), api::MetaColumnType::Double) => compact_doc.add_f64(idx, *f),
-                (String(s), api::MetaColumnType::String) => compact_doc.add_text(idx, s),
+                (Text(s), api::MetaColumnType::Text) => compact_doc.add_text(idx, s),
                 (Bytes(b), api::MetaColumnType::Bytes) => compact_doc.add_bytes(idx, b.as_slice()),
                 (DateTime(iso_date), api::MetaColumnType::DateTime) => {
                     let dt: chrono::DateTime<chrono::Utc> = iso_date.parse().map_err(|_| {
@@ -39,12 +44,19 @@ pub fn to_tantivy_doc(meta_schema: &MetaSchema, doc: &api::Document) -> Result<T
                 }
                 _ => {
                     return Err(TantivyError::InvalidArgument(format!(
-                        "Invalid data type '{:?}' for field '{}'",
-                        value, field_name
+                        "Invalid data {}: {} != {:?}",
+                        field_name, colunm_type, value
                     ))
                     .into());
                 }
             }
+        }
+    }
+
+    // Ensure all not-null fields are present in the document
+    for col in &meta_schema.columns {
+        if !col.is_nullable && !indexed_fields.contains(&col.name) {
+            return Err(anyhow!("Missing required not-null field: '{}'", col.name));
         }
     }
 
