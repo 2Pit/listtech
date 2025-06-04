@@ -1,6 +1,7 @@
 [workspace]
 members = ["indexer", "searcher", "corelib", "scripts/ingest"]
 resolver = "3"
+license = "BSL-1.1"
 
 [workspace.dependencies]
 axum = { version = "0.8", features = ["macros"] }      # HTTP-сервер и middleware

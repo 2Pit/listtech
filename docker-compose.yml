@@ -1,6 +1,0 @@
-services:
-  indexer:
-    build: ./indexer
-    environment:
-      - PORT=${PORT}
-      - SWAGGER_FILE=${SWAGGER_FILE}
