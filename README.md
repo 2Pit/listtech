@@ -12,26 +12,26 @@ https://cseweb.ucsd.edu/~jmcauley/datasets/amazon_v2/
 
 Place the file `meta_Electronics.json` into the `./data/` directory:
 
-``bash
+```bash
 project-root/
 |
 ├── data/
 |   └── meta_Electronics.json
-``
+```
 
 ### 2. Run the indexer and searcher
 
-``bash
+```bash
 cargo run -p indexer
 cargo run -p searcher --release
-``
+```
 
 ### 3. Register a schema and ingest documents
 
-``bash
+```bash
 make add_schema
 make ingest
-``
+```
 
 This will:
 
@@ -41,9 +41,9 @@ This will:
 
 ### 4. Run a sample query
 
-``bash
+```bash
 make select
-``
+```
 
 This performs a search request from script via HTTP using JSON (CBOR is also supported).
 
