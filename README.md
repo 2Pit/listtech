@@ -50,7 +50,7 @@ This performs a search request from script via HTTP using JSON (CBOR is also sup
 ## Project Structure
 
 - `data/` – input JSON documents and generated search indexes
-- `indexer/` – indexing component (schema registration, ingestion, auto-commits)
+- `indexer/` – indexing component (schema registration, auto-commits)
 - `searcher/` – search component (query parsing, facets, sorting)
 - `scripts/` – helper scripts for schema setup and ingestion
 
@@ -70,4 +70,4 @@ This project is licensed under the **Business Source License 1.1 (BSL-1.1)**.
 
 See the [LICENSE.md](./LICENSE.md) file for full terms.
 
-Third-party components and their licenses are listed in [third_party_licenses.html](./third_party_licenses.html).
+Third-party components and their licenses are listed in [third_party_licenses.md](./third_party_licenses.md).
