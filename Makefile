@@ -1,4 +1,4 @@
-.PHONY: run ingest
+.PHONY: run ingest add_schema select
 
 run:
 	tmux new-session -d -s listtech \
@@ -9,3 +9,9 @@ run:
 
 ingest:
 	cargo run -p ingest --release
+
+add_schema:
+	bash scripts/add_schema.sh
+
+select:
+	bash scripts/select.sh
