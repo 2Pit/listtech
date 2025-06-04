@@ -1,6 +1,19 @@
 # Listtech Search Platform
 
-A Rust-based search platform for document indexing and full-text + faceted search, with versioned schema support.
+A Rust-based search platform for document indexing and full-text + faceted search, with versioned schema support and real-time scoring.
+
+Unlike traditional engines that rely solely on precomputed sort fields, **Listtech supports online document ranking using arbitrary scoring expressions**, evaluated at query time.
+
+For example, the engine can sort over **700,000 classifieds in under 200 ms** using expressions like:
+
+```bash
+-ln(price + 1) - 10 * exp(-0.01 * ((now_ms() - published_ms) / 86400000))
+```
+
+This makes it ideal for marketplaces, catalogs, or ML-powered relevance experiments — where ranking logic must be dynamic and testable without reindexing.
+
+See:
+[Scalable Online Ranking: From Scoring Expressions to ML Models](https://www.linkedin.com/pulse/scalable-online-ranking-from-scoring-expressions-ml-models-bogdanov-uvlof/)
 
 ## Quick Start
 
@@ -14,9 +27,8 @@ Place the file `meta_Electronics.json` into the `./data/` directory:
 
 ```bash
 project-root/
-|
 ├── data/
-|   └── meta_Electronics.json
+    └── meta_Electronics.json
 ```
 
 ### 2. Run the indexer and searcher
